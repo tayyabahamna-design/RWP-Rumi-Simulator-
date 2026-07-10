@@ -83,6 +83,19 @@
 
 </div>
 
+<div id="doc-modal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:100; display:flex; align-items:center; justify-content:center; padding:20px;">
+  <div style="width:100%; max-width:820px; height:88vh; background:#1c1c1e; border-radius:14px; overflow:hidden; display:flex; flex-direction:column;">
+    <div class="flex items-center justify-between px-4 py-3" style="background:#2c2c2e; border-bottom:1px solid rgba(255,255,255,0.08);">
+      <p id="doc-modal-name" class="text-sm font-bold truncate" style="color:#fff; max-width:70%;"></p>
+      <div class="flex items-center gap-3">
+        <a id="doc-modal-open" href="#" target="_blank" rel="noopener" class="text-xs font-semibold" style="color:var(--wa-link);">Open in new tab ↗</a>
+        <button id="doc-modal-close" class="text-xl font-bold" style="color:#fff; line-height:1;">×</button>
+      </div>
+    </div>
+    <iframe id="doc-modal-frame" src="" style="flex:1; border:none; background:#fff;"></iframe>
+  </div>
+</div>
+
 <script>
 
 /* =====================================================================
@@ -344,7 +357,7 @@ function waBubbleHtml(m, mineRole){
       ${m.audio ? `<audio id="${vid}-audio" src="${m.audio}" preload="none"></audio>` : ""}
     </div>`;
   }
-  else if (m.kind === "docLink") inner = `<a href="${m.href}" target="_blank" rel="noopener" class="flex items-center gap-2 rounded-lg p-2" style="background:#262C2E; width:222px; text-decoration:none;">
+  else if (m.kind === "docLink") inner = `<button data-doc-open="${m.href}" data-doc-name="${(m.name || "").replace(/"/g,'&quot;')}" class="flex items-center gap-2 rounded-lg p-2 text-left" style="background:#262C2E; width:222px; border:none; cursor:pointer;">
       <div class="flex items-center justify-center rounded flex-shrink-0" style="width:36px;height:36px;background:${m.color || '#D64545'};">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="#fff"><path d="M6 2h9l5 5v15H6z"/></svg>
       </div>
@@ -352,7 +365,7 @@ function waBubbleHtml(m, mineRole){
         <p class="text-[11.5px] font-semibold truncate" style="color:var(--wa-text);">${m.name}</p>
         <p class="text-[10px]" style="color:var(--wa-link);">${m.sub || "Tap to open · PDF"}</p>
       </div>
-    </a>`;
+    </button>`;
   else if (m.kind === "pdfDoc") inner = `<div class="flex items-center gap-2 rounded-lg p-2" style="background:#262C2E; width:210px;">
       <div class="flex items-center justify-center rounded flex-shrink-0" style="width:34px;height:34px;background:#D64545;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M6 2h9l5 5v15H6z"/></svg>
@@ -491,7 +504,36 @@ document.addEventListener("click", (e) => {
     bar.style.transition = "none"; bar.style.width = "0%";
     requestAnimationFrame(() => { bar.style.transition = "width 3000ms linear"; bar.style.width = "100%"; });
     setTimeout(() => { window.dispatchEvent(new CustomEvent("video-done", { detail: { vid } })); }, 3000);
+    return;
   }
+  const docBtn = e.target.closest("[data-doc-open]");
+  if (docBtn){
+    openDocModal(docBtn.getAttribute("data-doc-open"), docBtn.getAttribute("data-doc-name") || "Document");
+  }
+});
+
+/* Drive file links (/file/d/{id}/view) embed inline via /preview — folders and
+   external sites (Canva) get blocked by X-Frame-Options, so those open in a new tab. */
+function openDocModal(href, name){
+  const isDriveFile = /drive\.google\.com\/file\/d\//.test(href);
+  if (!isDriveFile){
+    window.open(href, "_blank", "noopener");
+    return;
+  }
+  const previewSrc = href.replace(/\/view.*$/, "/preview");
+  const modal = document.getElementById("doc-modal");
+  document.getElementById("doc-modal-name").textContent = name;
+  document.getElementById("doc-modal-open").href = href;
+  document.getElementById("doc-modal-frame").src = previewSrc;
+  modal.classList.remove("hidden");
+}
+function closeDocModal(){
+  document.getElementById("doc-modal").classList.add("hidden");
+  document.getElementById("doc-modal-frame").src = "";
+}
+document.getElementById("doc-modal-close").addEventListener("click", closeDocModal);
+document.getElementById("doc-modal").addEventListener("click", (e) => {
+  if (e.target.id === "doc-modal") closeDocModal();
 });
 
 function phoneShell(chatScrollId, actionsId, headerName, height){
@@ -635,15 +677,13 @@ function rateHots(rating){
 
 
 let lpEngine, lpDone = false, lpBusy = false, lpCounter = 11990;
-let lpSel = { grade:null, subject:null, chapter:null };
+let lpSel = { grade:null, subject:null, chapterNum:null };
 let lpSheetView = null;
 
 const LP_DATA = {
   "Maths": {
-    "1": {
-      title: "Whole Numbers",
-      audio: "assets/audio/heart_maths_g1.mp3",
-      days: [
+    "1": [
+      { num:1, title:"Whole Numbers", audio:"assets/audio/heart_maths_g1_ch1.mp3", days: [
         { d:"Day 1", topic:"Count Up to 9", skill:"concrete", pages:"1-2", slo:"M-1-NS", goal:"Identify and count numbers 1-9 using objects", dur:"40", pdf:"1H7DmpSIyFbEXM4P-TvCgzsG2y19jugpd" },
         { d:"Day 2", topic:"Concept of Zero", skill:"concrete", pages:"3-4", slo:"M-1-NS", goal:"Identify 0 as a number representing nothing", dur:"40", pdf:"1QVufwCipMh1h80QAXqT8Ktz52tn74TpM" },
         { d:"Day 3", topic:"Write Numbers 0-9 in Numerals and Words", skill:"pictorial abstract", pages:"5-6", slo:"M-1-NS", goal:"Write numbers up to 9 in numerals and in words", dur:"40", pdf:"1Of2Kv6MU4tAXDz7PM4U4we94DvYNxX3y" },
@@ -669,12 +709,41 @@ const LP_DATA = {
         { d:"↻ Spiral Review", topic:"Spiral Review: Whole Numbers", skill:"revision", pages:"29", slo:"M-1-NS", goal:"", dur:"30", pdf:"13AB8X-SHOpGLwXbNg__zUk4qxjDuCdXW" },
         { d:"↻ Spiral Review", topic:"Spiral Review: Whole Numbers + Whole Numbers", skill:"revision", pages:"36-37", slo:"M-1-NS", goal:"", dur:"30", pdf:"1pecs9eGSpwckZjz3IT8u9Yk-IfbjzkeC" },
         { d:"📋 Ch. Review", topic:"Chapter Review: Whole Numbers", skill:"revision", pages:"1-42", slo:"M-1-NS", goal:"", dur:"30", pdf:"1qVGK0fteBrwV48RMHYTopEifVK4AaE38" },
-      ]
-    },
-    "2": {
-      title: "Whole Numbers",
-      audio: "assets/audio/heart_maths_g2.mp3",
-      days: [
+      ] },
+      { num:2, title:"Number Operations - Addition - Subtraction", audio:"assets/audio/heart_maths_g1_ch2.mp3", days: [
+        { d:"Day 1", topic:"Introduction to Addition (Combining Objects)", skill:"concrete", pages:"43-44", slo:"M-1-OP", goal:"Understand addition as combining groups, recognize + and = symbols", dur:"40", pdf:"1zRlY6tK7TkdFsR1GEIdyNgPc4Ln2pq46" },
+        { d:"Day 2", topic:"How Much More (Comparing Numbers)", skill:"pictorial abstract", pages:"45", slo:"M-1-OP", goal:"Compare numbers 1-20 to find how much more", dur:"40", pdf:"1B4Qh_vfQ_CqeU1asp7MkS3g3-OJtAJ_h" },
+        { d:"Day 3", topic:"Addition of 1-Digit Numbers", skill:"concrete", pages:"46-47", slo:"M-1-OP", goal:"Add two 1-digit numbers using concrete objects and number line", dur:"40", pdf:"1-ihYbx6jDKKHq9xXkTi41wiq8N4VY-6-" },
+        { d:"Day 4", topic:"Addition of 1-Digit Numbers Practice", skill:"pictorial abstract", pages:"48-50", slo:"M-1-OP", goal:"Add 1-digit numbers using pictures and number sentences", dur:"40", pdf:"1Aw2C2d4-eCEs7aBojxC_FwP-L-Qd767T" },
+        { d:"Day 5", topic:"Addition: 1-Digit with 2-Digit", skill:"pictorial abstract", pages:"51-52", slo:"M-1-OP", goal:"Add 1-digit numbers with 2-digit numbers without regrouping", dur:"40", pdf:"1AEQWOnAvXKtTTwN6mxGjJ0nmM24LfEZl" },
+        { d:"Day 6", topic:"Addition of Two 2-Digit Numbers", skill:"pictorial abstract", pages:"53-54", slo:"M-1-OP", goal:"Add two 2-digit numbers without regrouping", dur:"40", pdf:"10kx7jb1sTOxazJej3ZKHCmEGPZIOF6-E" },
+        { d:"Day 7", topic:"Unknown Addend and Mental Addition", skill:"pictorial abstract", pages:"55-56", slo:"M-1-OP", goal:"Find unknown numbers in addition, use mental strategies", dur:"40", pdf:"1v1fu8IZiNInGtla4jSF6Cdw82mc-RR5E" },
+        { d:"Day 8", topic:"Introduction to Subtraction (Taking Away)", skill:"concrete", pages:"57-58", slo:"M-1-OP", goal:"Understand subtraction as taking away, recognize - symbol, how much less", dur:"40", pdf:"1KnArXUZSCfTZ4j2y9NZcCvaSRsXQEF8h" },
+        { d:"Day 9", topic:"Subtraction of 1-Digit Numbers", skill:"concrete", pages:"59-60", slo:"M-1-OP", goal:"Subtract 1-digit numbers using objects and counting backward", dur:"40", pdf:"1DnRs7LDOSvMHgJMeAGmIl27F11-Rg2iI" },
+        { d:"Day 10", topic:"Subtraction of 1-Digit Practice", skill:"pictorial abstract", pages:"61-62", slo:"M-1-OP", goal:"Subtract 1-digit numbers using pictures and number sentences", dur:"40", pdf:"1NLa6KizjvH84vTemIlLNC9Vou4xDhzsJ" },
+        { d:"Day 11", topic:"Subtraction: 1-Digit from 2-Digit", skill:"pictorial abstract", pages:"63-64", slo:"M-1-OP", goal:"Subtract 1-digit from 2-digit numbers without regrouping", dur:"40", pdf:"1trnNvUWR-fd03S8cX1EBS20HQrAMWxC1" },
+        { d:"Day 12", topic:"Subtraction of Two 2-Digit Numbers", skill:"pictorial abstract", pages:"65-67", slo:"M-1-OP", goal:"Subtract two 2-digit numbers without regrouping", dur:"40", pdf:"1K-Hq_ukZ3sS4wRjfoTjfgm9fMd2P1ARD" },
+        { d:"Day 13", topic:"Unknown Number and Mental Subtraction", skill:"pictorial abstract", pages:"68-69", slo:"M-1-OP", goal:"Find unknown numbers in subtraction, mental subtraction strategies", dur:"40", pdf:"1p8auzXI93GwqdDER0OMm0KpfbIKoxFHq" },
+        { d:"Day 14", topic:"Addition and Subtraction Review", skill:"word problem", pages:"70-72", slo:"M-1-OP", goal:"Solve real-life addition and subtraction word problems", dur:"40", pdf:"1TpEP-FlXe3LgxfgCn3YojUmqGgWHZKMz" },
+        { d:"Day 15", topic:"Chapter 2 Extended Practice", skill:"word problem", pages:"73-74", slo:"M-1-OP", goal:"Mixed practice on addition and subtraction of 2-digit numbers", dur:"40", pdf:"1uIMDNQLhOqGtBxU-2-Wy4UOljPYs43B1" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Whole Numbers + Whole Numbers", skill:"revision", pages:"46-47", slo:"M-1-OP", goal:"", dur:"30", pdf:"1aWoE1BizSAEHQ1v1DTcQn79VPAMutpxu" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Whole Numbers + Whole Numbers", skill:"revision", pages:"57-58", slo:"M-1-OP", goal:"", dur:"30", pdf:"1aWoE1BizSAEHQ1v1DTcQn79VPAMutpxu" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Number Operations - Addition - Subtraction + Whole Numbers", skill:"revision", pages:"68-69", slo:"M-1-OP", goal:"", dur:"30", pdf:"1stA4iMsRcxvuH6hDqTpoVbpeUMeD6sds" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Number Operations - Addition - Subtraction", skill:"revision", pages:"43-74", slo:"M-1-OP", goal:"", dur:"30", pdf:"1wloiNb8rCtcbNRyzaLTvDwghiUIANHJ1" },
+      ] },
+      { num:3, title:"Measurement - Length - Mass", audio:"assets/audio/heart_maths_g1_ch3.mp3", days: [
+        { d:"Day 1", topic:"Long, Longer, Longest", skill:"concrete", pages:"75-76", slo:"M-1-ME", goal:"Compare objects by length: long, longer, longest / short, shorter, shortest", dur:"40", pdf:"1RB9g3xNki_LXzxz01lT_CnTI_jrinv7E" },
+        { d:"Day 2", topic:"Length Comparison Exercises", skill:"pictorial abstract", pages:"77", slo:"M-1-ME", goal:"Identify shortest and longest objects in pictures", dur:"40", pdf:"1J17L_fRex2wxpFLA45n2Tp74lPPBOGFe" },
+        { d:"Day 3", topic:"Tall, Taller, Tallest", skill:"concrete", pages:"78-79", slo:"M-1-ME", goal:"Compare heights: tall/taller/tallest, short/shorter/shortest", dur:"40", pdf:"1RZzcP15uUBOgyTnJ7L7O2UBBYWL58NJd" },
+        { d:"Day 4", topic:"High, Higher, Highest", skill:"pictorial abstract", pages:"80-81", slo:"M-1-ME", goal:"Compare heights of objects: high, higher, highest", dur:"40", pdf:"1Fa8BdQw1WCe6ESKbcAKx0keifv1mvhzi" },
+        { d:"Day 5", topic:"Heavy, Heavier, Heaviest", skill:"concrete", pages:"82-83", slo:"M-1-ME", goal:"Compare mass: heavy/heavier/heaviest, light/lighter/lightest", dur:"40", pdf:"1u8BLushb1DiqgAlJ_zl_r8hzV-TeSZO8" },
+        { d:"Day 6", topic:"Measurement Review", skill:"word problem", pages:"84-86", slo:"M-1-ME", goal:"Apply measurement comparison vocabulary in exercises", dur:"40", pdf:"1hJsqCA5icVGIzjgRXImnlld0f5jnD4Fo" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Number Operations - Addition - Subtraction + Number Operations - Addition - Subtraction", skill:"revision", pages:"78-79", slo:"M-1-ME", goal:"", dur:"30", pdf:"1ppzMNRndoVjIClaF6eGQBP_zPGS0kuJS" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Measurement - Length - Mass", skill:"revision", pages:"75-86", slo:"M-1-ME", goal:"", dur:"30", pdf:"1dFop6GgWHZmJVu84JE7DpjPIC4KxSIzK" },
+      ] },
+    ],
+    "2": [
+      { num:1, title:"Whole Numbers", audio:"assets/audio/heart_maths_g2_ch1.mp3", days: [
         { d:"Day 1", topic:"Ordinal Numbers 1st to 20th", skill:"concrete", pages:"1-3", slo:"M-2-NS", goal:"Write ordinal numbers from first to twentieth", dur:"40", pdf:"1KcAS17kWs6_boBLLfHf_Xh8kkWYY0j2A" },
         { d:"Day 2", topic:"Numbers up to 100 in Words", skill:"pictorial abstract", pages:"4-5", slo:"M-2-NS", goal:"Write numbers from 1 to 100 in words", dur:"40", pdf:"1BSmAGNQbZhrFEPa-QyABEJyIrJnA9qeV" },
         { d:"Day 3", topic:"Place Value of 3-Digit Numbers", skill:"concrete", pages:"6-8", slo:"M-2-NS", goal:"Recognize place value of digits in a 3-digit number (H, T, O)", dur:"40", pdf:"1v6x3PMzuaYCfvpjGHOmW5zVSYTNFCa-C" },
@@ -685,12 +754,56 @@ const LP_DATA = {
         { d:"Day 8", topic:"Recognize 1000 and Review", skill:"pictorial abstract", pages:"21-23", slo:"M-2-NS", goal:"Recognize 1000 as first 4-digit number, chapter review", dur:"40", pdf:"1EQ4soHebh5R0bettnW5RtePUq3vWQXhs" },
         { d:"Day 9", topic:"Whole Numbers Review Exercises", skill:"word problem", pages:"24-29", slo:"M-2-NS", goal:"Apply number concepts up to 999 in review problems", dur:"40", pdf:"1wR4yA8r8WPLkXyLRiQAxu1xO9yl1tkfd" },
         { d:"📋 Ch. Review", topic:"Chapter Review: Whole Numbers", skill:"revision", pages:"1-29", slo:"M-2-NS", goal:"", dur:"30", pdf:"1Cztp0YcFPU-OoDDjqSL6rT8Gw9Dl-qoZ" },
-      ]
-    },
-    "3": {
-      title: "Whole Numbers",
-      audio: "assets/audio/heart_maths_g3.mp3",
-      days: [
+      ] },
+      { num:2, title:"Number Operations", audio:"assets/audio/heart_maths_g2_ch2.mp3", days: [
+        { d:"Day 1", topic:"Addition of 1-Digit + 1-Digit Numbers", skill:"concrete", pages:"30-32", slo:"M-2-OP", goal:"Add 1-digit and 1-digit numbers, add 1-digit and 2-digit with carrying", dur:"40", pdf:"1li_yD3ZXdzU83P91W9UxUCBe_I9HGjhw" },
+        { d:"Day 2", topic:"Addition of 2-Digit + 2-Digit with Carrying", skill:"pictorial abstract", pages:"33-35", slo:"M-2-OP", goal:"Add 2-digit numbers with carrying using column method", dur:"40", pdf:"1crBOCVxPEfRigGlKK8RwPFlKGkkqj__D" },
+        { d:"Day 3", topic:"Addition Word Problems (2-Digit)", skill:"word problem", pages:"36-37", slo:"M-2-OP", goal:"Solve real-life number stories involving 2-digit addition", dur:"40", pdf:"1Xrs8SfTjuwrXdWsm9423n6YiOFrMpnKK" },
+        { d:"Day 4", topic:"Addition of 3-Digit + 1-Digit (No Carrying)", skill:"concrete", pages:"38-40", slo:"M-2-OP", goal:"Add 3-digit and 1-digit/2-digit numbers without carrying", dur:"40", pdf:"12HvoOI1X5E7kkQYGfvbzL2EaIaxcaY5B" },
+        { d:"Day 5", topic:"Addition of 3-Digit + 3-Digit (No Carrying)", skill:"pictorial abstract", pages:"41-43", slo:"M-2-OP", goal:"Add 3-digit and 3-digit numbers without carrying", dur:"40", pdf:"1--gXAsgPkg66bGAbqrOBbw7fYQ4XJNTx" },
+        { d:"Day 6", topic:"Addition Word Problems (3-Digit No Carry)", skill:"word problem", pages:"44-45", slo:"M-2-OP", goal:"Solve real-life number stories involving 3-digit addition without carrying", dur:"40", pdf:"1X8apDgQc7xPuPkjiTlLHlF-XGZpWasgR" },
+        { d:"Day 7", topic:"Addition of 3-Digit with Carrying", skill:"concrete", pages:"46-48", slo:"M-2-OP", goal:"Add 3-digit numbers with carrying of tens and hundreds", dur:"40", pdf:"1ACxeSC3PX3vBjCgjWGREx5awyq0ejWF5" },
+        { d:"Day 8", topic:"Addition of 3-Digit with Carrying Practice", skill:"pictorial abstract", pages:"49-51", slo:"M-2-OP", goal:"Add 3-digit numbers with carrying using column method", dur:"40", pdf:"1XDNP_yaVGlnNvfgc6LZFfBntkOsJqP09" },
+        { d:"Day 9", topic:"Addition Word Problems (3-Digit with Carry)", skill:"word problem", pages:"52-53", slo:"M-2-OP", goal:"Solve real-life 3-digit addition problems with carrying", dur:"40", pdf:"1AObRkLxGv0N9sdP-IIbFCrUvsdwZBaHd" },
+        { d:"Day 10", topic:"Subtraction of 2-Digit with Borrowing", skill:"concrete", pages:"54-56", slo:"M-2-OP", goal:"Subtract 1-digit from 2-digit and 2-digit from 2-digit with borrowing", dur:"40", pdf:"15ONUQzsatjU86S5Ez-lgX5ubOX8ZLeDq" },
+        { d:"Day 11", topic:"Subtraction 2-Digit Practice", skill:"pictorial abstract", pages:"57-59", slo:"M-2-OP", goal:"Subtract 2-digit numbers with borrowing using column method", dur:"40", pdf:"1sRGK4pLpym6-CoM1oD68TyFHmKbJc2zA" },
+        { d:"Day 12", topic:"Subtraction Word Problems (2-Digit)", skill:"word problem", pages:"60-61", slo:"M-2-OP", goal:"Solve real-life 2-digit subtraction problems", dur:"40", pdf:"1kLVeKWAxbiJvy1xw-Z7XQo1G29X38UGz" },
+        { d:"Day 13", topic:"Subtraction of 3-Digit (No Borrowing)", skill:"concrete", pages:"62-64", slo:"M-2-OP", goal:"Subtract 3-digit numbers without borrowing", dur:"40", pdf:"1mljpiHx4yaG8UIvUgNReyM_BkutAP3-h" },
+        { d:"Day 14", topic:"Subtraction 3-Digit Practice (No Borrowing)", skill:"pictorial abstract", pages:"65-67", slo:"M-2-OP", goal:"Subtract 3-digit numbers without borrowing using column method", dur:"40", pdf:"1p_0pBZQRzuy9pOllllAo3vYjXKvH5HRJ" },
+        { d:"Day 15", topic:"Subtraction Word Problems (3-Digit No Borrow)", skill:"word problem", pages:"68-69", slo:"M-2-OP", goal:"Solve real-life 3-digit subtraction problems", dur:"40", pdf:"1SVXSbXvJevx-PQyKttN8ZgOdgCwvet-p" },
+        { d:"Day 16", topic:"Subtraction of 3-Digit with Borrowing", skill:"concrete", pages:"70-72", slo:"M-2-OP", goal:"Subtract 3-digit numbers with borrowing", dur:"40", pdf:"1QoHHZnW4uurA0_QhmvghkGgg58jBUTf_" },
+        { d:"Day 17", topic:"Subtraction 3-Digit with Borrowing Practice", skill:"pictorial abstract", pages:"73-75", slo:"M-2-OP", goal:"Subtract 3-digit numbers with borrowing using column method", dur:"40", pdf:"1zGT1cwU38QZ9TOWn-ekgYk7tqtqmM0ln" },
+        { d:"Day 18", topic:"Subtraction Word Problems (3-Digit Borrow)", skill:"word problem", pages:"76-77", slo:"M-2-OP", goal:"Solve real-life 3-digit subtraction with borrowing", dur:"40", pdf:"1aqfgaQjIn8VMKO3l6zhP0GJos1542ddn" },
+        { d:"Day 19", topic:"Mental Addition up to 50", skill:"pictorial abstract", pages:"78", slo:"M-2-OP", goal:"Add numbers up to 50 using mental calculation strategies", dur:"40", pdf:"1vwK7IT3PgNZkDIGogzCBJeHgImM8g_mJ" },
+        { d:"Day 20", topic:"Mixed Operations (Choose +/-)", skill:"pictorial abstract", pages:"79-80", slo:"M-2-OP", goal:"Analyze situations to choose correct operation of addition or subtraction", dur:"40", pdf:"1RMyJX4kdSNWTyBUnj-LlI8fJzC8gflq6" },
+        { d:"Day 21", topic:"Introduction to Multiplication (Repeated Addition)", skill:"concrete", pages:"81-82", slo:"M-2-OP", goal:"Recognize multiplication as repeated addition, use x symbol", dur:"40", pdf:"1t2i6PuNGbcFlut0a6je_bvbALZZ4Oisp" },
+        { d:"Day 22", topic:"Skip Counting by 2s and 3s", skill:"concrete", pages:"83", slo:"M-2-OP", goal:"Count in steps of 2 and 3", dur:"40", pdf:"11qNdxWGvNXQkCcIVJPS6jiB2Kg2PKgLA" },
+        { d:"Day 23", topic:"Multiplication Tables 2 and 3", skill:"pictorial abstract", pages:"84", slo:"M-2-OP", goal:"Develop multiplication tables of 2 and 3", dur:"40", pdf:"1nB9r2cgFqZlG_qQ5dVJX2dZGhclIZKIh" },
+        { d:"Day 24", topic:"Multiplication Tables 4, 5, and 10", skill:"pictorial abstract", pages:"85-86", slo:"M-2-OP", goal:"Develop multiplication tables of 4, 5, and 10", dur:"40", pdf:"16oKtrT9JeYFQ8BGrlzy4uOzoUgXB0Ysn" },
+        { d:"Day 25", topic:"Multiplication Word Problems", skill:"word problem", pages:"87", slo:"M-2-OP", goal:"Solve number stories involving multiplication of 1-digit numbers", dur:"40", pdf:"1z0eiy-4W7nkiTI0em7iqhx5Fp9LYKsZc" },
+        { d:"Day 26", topic:"Introduction to Division (Equal Sharing)", skill:"concrete", pages:"88-89", slo:"M-2-OP", goal:"Recognize division as equal sharing and successive subtraction, use ÷ symbol", dur:"40", pdf:"1sJA3f-c_XoxUa2eLr1ioKkjN6EKVbxv-" },
+        { d:"Day 27", topic:"Division within Tables", skill:"pictorial abstract", pages:"90-91", slo:"M-2-OP", goal:"Divide numbers within multiplication tables with zero remainder", dur:"40", pdf:"1-10rxs3dbiONJJnOGJ-ZRi8tyAbVkVSQ" },
+        { d:"Day 28", topic:"Division Word Problems", skill:"word problem", pages:"92", slo:"M-2-OP", goal:"Solve number stories involving division of 1-digit numbers", dur:"40", pdf:"1ZDMD3rqxCbsAplxqrJYbGLRwNryD9kI5" },
+        { d:"Day 29", topic:"Choose the Correct Operation (All Four)", skill:"word problem", pages:"93", slo:"M-2-OP", goal:"Choose correct operation (+,-,x,÷) for real-life situations using Pakistani currency", dur:"40", pdf:"1LNVoEtHJOI7z19IgG9fZjZLSxJbqd5fF" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Whole Numbers", skill:"revision", pages:"44-45", slo:"M-2-OP", goal:"", dur:"30", pdf:"1Cv36bW9T8RhLYT7HMmg8S0JXT8YxVibq" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Number Operations + Whole Numbers", skill:"revision", pages:"57-59", slo:"M-2-OP", goal:"", dur:"30", pdf:"1CJ8gJ9c-tp15zTuxPhsFGW0rLX889aVa" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Number Operations + Number Operations", skill:"revision", pages:"70-72", slo:"M-2-OP", goal:"", dur:"30", pdf:"1wcQZs1XmuTmFU-66g5tztks6xGB58oUd" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Number Operations + Number Operations", skill:"revision", pages:"81-82", slo:"M-2-OP", goal:"", dur:"30", pdf:"140qBZxT2_Awk-DggOeoaTgwvyTon9T3A" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Number Operations + Number Operations", skill:"revision", pages:"88-89", slo:"M-2-OP", goal:"", dur:"30", pdf:"1d6GL6O11N92qZ84TEdjTlhZ4T2MXEoHV" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Number Operations", skill:"revision", pages:"30-93", slo:"M-2-OP", goal:"", dur:"30", pdf:"1QxAumNPX2yqx7Y-rTLuV730f6Q-7DNbM" },
+      ] },
+      { num:3, title:"Fraction", audio:"assets/audio/heart_maths_g2_ch3.mp3", days: [
+        { d:"Day 1", topic:"Fractions as Equal Parts", skill:"concrete", pages:"94-96", slo:"M-2-FR", goal:"Recognize fractions as equal parts of a whole, identify halves/thirds/quarters", dur:"40", pdf:"1XpB27fOtDEHGXzkVRLzSyZE6q8LYNpXt" },
+        { d:"Day 2", topic:"Writing Fractions (1/2, 1/3, 1/4)", skill:"pictorial abstract", pages:"97-99", slo:"M-2-FR", goal:"Write halves, thirds, quarters in numerical form, shade figures", dur:"40", pdf:"1ZaK6cVo-pmTL6ArRb6bWwPDZNtN26lwe" },
+        { d:"Day 3", topic:"Unit Fractions up to 1/10", skill:"pictorial abstract", pages:"100-102", slo:"M-2-FR", goal:"Name unit fractions up to 1/10", dur:"40", pdf:"1y1eHkIXeqDXiJx4AVcC20bw5qxEpUExY" },
+        { d:"Day 4", topic:"Common Fractions (2/3, 3/4, etc.)", skill:"pictorial abstract", pages:"103-105", slo:"M-2-FR", goal:"Name common fractions like 2/3, 3/4, 4/5 up to 9/10", dur:"40", pdf:"1q0B2Yzx6bHvC2vt1FRgrrWDq2jJ8zYdA" },
+        { d:"Day 5", topic:"Fractions Review", skill:"word problem", pages:"106-107", slo:"M-2-FR", goal:"Apply fraction concepts in review exercises", dur:"40", pdf:"1cILevxZ7snoEdem5JxEpN8uS7tSvT7MO" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Number Operations + Number Operations", skill:"revision", pages:"97-99", slo:"M-2-FR", goal:"", dur:"30", pdf:"1D7_jAixD1V5296_JAEI1FnL1OSRHzTzg" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Fraction", skill:"revision", pages:"94-107", slo:"M-2-FR", goal:"", dur:"30", pdf:"1N6bY465VZ1bmrjKoX5T2D8NBrtG5pEvW" },
+      ] },
+    ],
+    "3": [
+      { num:1, title:"Whole Numbers", audio:"assets/audio/heart_maths_g3_ch1.mp3", days: [
         { d:"Day 1", topic:"Roman Numbers I to X", skill:"concrete", pages:"1-3", slo:"M-3-NS", goal:"Read and write Roman numbers up to 10", dur:"40", pdf:"1ojCfEE-VQqQHxZZXGrlx98aByktAE2Xa" },
         { d:"Day 2", topic:"Roman Numbers XI to XX", skill:"pictorial abstract", pages:"4-5", slo:"M-3-NS", goal:"Read and write Roman numbers 11-20", dur:"40", pdf:"1udj5oDCz_n6KjywcuFkwiNCay-g-M-GV" },
         { d:"Day 3", topic:"Even and Odd Numbers", skill:"concrete", pages:"6-8", slo:"M-3-NS", goal:"Recognize and differentiate even/odd numbers up to 99", dur:"40", pdf:"1o5o4wOYyWDC9dHjtbKCVcbggI2HOfcM_" },
@@ -703,12 +816,41 @@ const LP_DATA = {
         { d:"Day 10", topic:"Rounding to Nearest 10 and 100", skill:"pictorial abstract", pages:"28-30", slo:"M-3-NS", goal:"Round whole numbers to nearest 10 and 100", dur:"40", pdf:"1ShdaVtDl10g266dF3oiPm1a6CnrfN0ub" },
         { d:"Day 11", topic:"Estimation and Review", skill:"word problem", pages:"31-40", slo:"M-3-NS", goal:"Apply estimation in real-life, review all number concepts", dur:"40", pdf:"1nRTIMGfQTGzX5v_Qet8X67mSrvFz2Zl-" },
         { d:"📋 Ch. Review", topic:"Chapter Review: Whole Numbers", skill:"revision", pages:"1-40", slo:"M-3-NS", goal:"", dur:"30", pdf:"1oNEw4gYdb3plEpVKUMWpD1G3R2RkJ-aD" },
-      ]
-    },
-    "4": {
-      title: "Whole Numbers",
-      audio: "assets/audio/heart_maths_g4.mp3",
-      days: [
+      ] },
+      { num:2, title:"Number Operations", audio:"assets/audio/heart_maths_g3_ch2.mp3", days: [
+        { d:"Day 1", topic:"Addition up to 4-Digit (with/without Carrying)", skill:"concrete", pages:"41-43", slo:"M-3-OP", goal:"Add numbers up to 4-digit with and without carrying", dur:"40", pdf:"1z1oC2aSuL7jAKXlDkorLskMrf9aQB96s" },
+        { d:"Day 2", topic:"Addition Practice", skill:"pictorial abstract", pages:"44-46", slo:"M-3-OP", goal:"Practice 4-digit addition with column method", dur:"40", pdf:"1_aKBNT_8tyvzB3GHAC24l5hIoop0MfDD" },
+        { d:"Day 3", topic:"Mental Addition up to 100", skill:"pictorial abstract", pages:"47", slo:"M-3-OP", goal:"Add numbers up to 100 using mental strategies", dur:"40", pdf:"1mEslf-M3XjfiY4agCXJqJBv5y8FPT8Aa" },
+        { d:"Day 4", topic:"Addition Word Problems", skill:"word problem", pages:"48-49", slo:"M-3-OP", goal:"Solve real-life addition problems up to 4-digit", dur:"40", pdf:"13s4KhzfWZ3phhUAtuSRUsPizxGk4pvZV" },
+        { d:"Day 5", topic:"Subtraction up to 4-Digit (with/without Borrowing)", skill:"concrete", pages:"50-52", slo:"M-3-OP", goal:"Subtract numbers up to 4-digit with and without borrowing", dur:"40", pdf:"15w8BVT05iDKarFcVn4CAyLNUqHaiC-LW" },
+        { d:"Day 6", topic:"Subtraction Practice", skill:"pictorial abstract", pages:"53-55", slo:"M-3-OP", goal:"Practice 4-digit subtraction with column method", dur:"40", pdf:"1Klyee2KhCOinqg25E_1oz3NBxQLkUhbP" },
+        { d:"Day 7", topic:"Mental Subtraction and Word Problems", skill:"word problem", pages:"56-58", slo:"M-3-OP", goal:"Subtract mentally up to 100, solve subtraction word problems", dur:"40", pdf:"1fWTHTsgVgKrrrkGVhxUPcT3yBxloo0LX" },
+        { d:"Day 8", topic:"Multiplication Table 6", skill:"concrete", pages:"59-60", slo:"M-3-OP", goal:"Develop multiplication table of 6", dur:"40", pdf:"1gUnooSu9ZcsatujI9-rlZZhJLkWRHUBh" },
+        { d:"Day 9", topic:"Multiplication Tables 7 and 8", skill:"pictorial abstract", pages:"61-62", slo:"M-3-OP", goal:"Develop multiplication tables of 7 and 8", dur:"40", pdf:"16RkYLeQutaMNciVtEHTwlysqvzlgVky8" },
+        { d:"Day 10", topic:"Multiplication Table 9", skill:"pictorial abstract", pages:"63", slo:"M-3-OP", goal:"Develop multiplication table of 9, 9s finger trick", dur:"40", pdf:"13zYRPK50VLnYfBO71pwkfg12bmns-ku1" },
+        { d:"Day 11", topic:"Multiply 2-Digit by 1-Digit", skill:"pictorial abstract", pages:"64-65", slo:"M-3-OP", goal:"Multiply 2-digit by 1-digit, multiply by 0 and 1", dur:"40", pdf:"1corWp3wlJ0qqP3qk750XU0LmxNvkKslY" },
+        { d:"Day 12", topic:"Mental Multiplication and Word Problems", skill:"word problem", pages:"66-68", slo:"M-3-OP", goal:"Apply mental multiplication strategies, solve multiplication word problems", dur:"40", pdf:"1SKqH8C0wH4S-p7lrWWYHdocx1mrIbvaI" },
+        { d:"Day 13", topic:"Division of 2-Digit by 1-Digit", skill:"concrete", pages:"69-71", slo:"M-3-OP", goal:"Divide 2-digit by 1-digit with zero remainder", dur:"40", pdf:"1xn2R61JK3q8WijvEgHLzJcYj6w5XuvFS" },
+        { d:"Day 14", topic:"Division Practice and Word Problems", skill:"word problem", pages:"72-75", slo:"M-3-OP", goal:"Mental division, solve division word problems, choose correct operation", dur:"40", pdf:"1m7oj5AlIuufL5jThz95FSZJHzVqHROAe" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Whole Numbers", skill:"revision", pages:"48-49", slo:"M-3-OP", goal:"", dur:"30", pdf:"1ya_lsU-lO-zTtdoNpf1v9QnbQH19Pc6a" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Whole Numbers + Whole Numbers", skill:"revision", pages:"61-62", slo:"M-3-OP", goal:"", dur:"30", pdf:"1rszCtXZAP9ljEbJhBovLk3vecwe8LRBp" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Number Operations + Whole Numbers", skill:"revision", pages:"72-75", slo:"M-3-OP", goal:"", dur:"30", pdf:"1auPNIOQnpZx8oXLznaB36pdLfVf4nTq7" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Number Operations", skill:"revision", pages:"41-75", slo:"M-3-OP", goal:"", dur:"30", pdf:"1SYUsAwipZoMKqzd6BQ3HbhkCdapfSx7W" },
+      ] },
+      { num:3, title:"Fractions", audio:"assets/audio/heart_maths_g3_ch3.mp3", days: [
+        { d:"Day 1", topic:"Fractions as Figures", skill:"concrete", pages:"76-78", slo:"M-3-FR", goal:"Express fractions as figures, match fractions with figures", dur:"40", pdf:"1Ye1SDewkzIdj4anHdbGNZ4rH10G_6SSD" },
+        { d:"Day 2", topic:"Proper and Improper Fractions", skill:"pictorial abstract", pages:"79-81", slo:"M-3-FR", goal:"Recognize proper fractions (num<den) and improper fractions (num>=den)", dur:"40", pdf:"1yY-mWPuFKYGG6x3Up5sA4r5Y8uNSGMNt" },
+        { d:"Day 3", topic:"Equivalent Fractions", skill:"pictorial abstract", pages:"82-84", slo:"M-3-FR", goal:"Identify equivalent fractions from figures", dur:"40", pdf:"1hOkYWlunZlBy3HS2RhTmRWpBkNlzy_bi" },
+        { d:"Day 4", topic:"Comparing Fractions (Same Denominator)", skill:"pictorial abstract", pages:"85-86", slo:"M-3-FR", goal:"Compare fractions with same denominator using < > =", dur:"40", pdf:"1xwFLk3S6WCw9i59OxdH9yl1jfnK8qB0-" },
+        { d:"Day 5", topic:"Addition of Fractions (Same Denominator)", skill:"concrete", pages:"87-89", slo:"M-3-FR", goal:"Add two fractions with same denominator", dur:"40", pdf:"15ykgm9mR57jxAhr25N6uflG2TI5NjheP" },
+        { d:"Day 6", topic:"Subtraction of Fractions (Same Denominator)", skill:"pictorial abstract", pages:"90-92", slo:"M-3-FR", goal:"Subtract fractions with same denominator", dur:"40", pdf:"1I8DipDplGhqP6d7thguOoKkuRyo5XIJF" },
+        { d:"Day 7", topic:"Fractions Review", skill:"word problem", pages:"93-95", slo:"M-3-FR", goal:"Apply fraction concepts in review exercises and word problems", dur:"40", pdf:"1nyvQMsuFFdnuDVEUTEoUBsbB2IA_I2jI" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Number Operations + Number Operations", skill:"revision", pages:"87-89", slo:"M-3-FR", goal:"", dur:"30", pdf:"1F00xkJL3MCA8cjawDgQpeC5a9Wcnq1KB" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Fractions", skill:"revision", pages:"76-95", slo:"M-3-FR", goal:"", dur:"30", pdf:"1kTzgkLnG9FCjvspRiAn81ELgvwZyYxRu" },
+      ] },
+    ],
+    "4": [
+      { num:1, title:"Whole Numbers", audio:"assets/audio/heart_maths_g4_ch1.mp3", days: [
         { d:"Day 1", topic:"Place Value up to 100,000", skill:"concrete", pages:"1-3", slo:"M-4-NS", goal:"Identify place values up to hundred thousand (TTh, Th, H, T, O)", dur:"40", pdf:"1qVkMF4M37KQ6ZLMAPcvEHeBCd6rObRdg" },
         { d:"Day 2", topic:"Read/Write Numbers to 100,000", skill:"pictorial abstract", pages:"4-6", slo:"M-4-NS", goal:"Read and write numbers up to 100,000 in numerals and words", dur:"40", pdf:"1jF5_0J8tcw_xj550jPFPT5aHujZxrFo_" },
         { d:"Day 3", topic:"Comparing 5-Digit Numbers", skill:"pictorial abstract", pages:"7-8", slo:"M-4-NS", goal:"Compare 5-digit numbers using < > = symbols", dur:"40", pdf:"1NiTNXtAQtRNLT7Z1XOvARAhAn-q5vGfq" },
@@ -723,12 +865,31 @@ const LP_DATA = {
         { d:"Day 12", topic:"Whole Numbers Word Problems", skill:"word problem", pages:"29-32", slo:"M-4-NS", goal:"Solve real-life problems with large numbers", dur:"40", pdf:"1H3M0YSgwIzLf5qsXSRPGGMfuSl48E8nY" },
         { d:"Day 13", topic:"Chapter 1 Review", skill:"word problem", pages:"33-35", slo:"M-4-NS", goal:"Review all whole number concepts", dur:"40", pdf:"1nxDWQDqMwDINWHZ4DiLZw6G6Oys5KEw0" },
         { d:"📋 Ch. Review", topic:"Chapter Review: Whole Numbers", skill:"revision", pages:"1-35", slo:"M-4-NS", goal:"", dur:"30", pdf:"1ineaI9fWXUd7hzzaWBR49rnOqe0iUwhI" },
-      ]
-    },
-    "5": {
-      title: "Whole Numbers and Operations",
-      audio: "assets/audio/heart_maths_g5.mp3",
-      days: [
+      ] },
+      { num:2, title:"Factors and Multiples", audio:"assets/audio/heart_maths_g4_ch2.mp3", days: [
+        { d:"Day 1", topic:"Finding Factors", skill:"concrete", pages:"36-38", slo:"M-4-NS", goal:"Find all factors of a number, identify factor pairs", dur:"40", pdf:"1D09OtMG2jEjAuzw9nwSKwt0OhLmA7A1q" },
+        { d:"Day 2", topic:"Listing Multiples", skill:"pictorial abstract", pages:"39-41", slo:"M-4-NS", goal:"List multiples of numbers, identify common multiples", dur:"40", pdf:"1kNyfHOZ7QcaCUZYqzQ-1UcAKWwF3RF0j" },
+        { d:"Day 3", topic:"Divisibility Rules", skill:"pictorial abstract", pages:"42-43", slo:"M-4-NS", goal:"Apply divisibility rules for 2, 3, 5, 10", dur:"40", pdf:"1h3ZdqBhaCMVR0cQstDU00cWJ3KPijJHa" },
+        { d:"Day 4", topic:"Prime and Composite Numbers", skill:"pictorial abstract", pages:"44-46", slo:"M-4-NS", goal:"Identify prime and composite numbers", dur:"40", pdf:"1TRqjQn_QDzCxUQgyai5vCuAiz2N6Ot96" },
+        { d:"Day 5", topic:"Factors and Multiples Word Problems", skill:"word problem", pages:"47-49", slo:"M-4-NS", goal:"Apply factors/multiples in problems", dur:"40", pdf:"18CFgmDire_ziCENlQVzfiaq9IueOJhcT" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Whole Numbers", skill:"revision", pages:"39-41", slo:"M-4-NS", goal:"", dur:"30", pdf:"1jZNV2ZxxLIx7IZFOWWYH3LjMPArn0izw" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Factors and Multiples", skill:"revision", pages:"36-49", slo:"M-4-NS", goal:"", dur:"30", pdf:"1tGXvOwf_C1MfMkE4uI8029badRZ47xKd" },
+      ] },
+      { num:3, title:"Fractions", audio:"assets/audio/heart_maths_g4_ch3.mp3", days: [
+        { d:"Day 1", topic:"Proper, Improper, Mixed Numbers", skill:"concrete", pages:"50-52", slo:"M-4-FR", goal:"Identify proper, improper fractions and mixed numbers", dur:"40", pdf:"1UgumGk2N1wZ7wYSvavZxux2-1RH48qXb" },
+        { d:"Day 2", topic:"Converting Improper ↔ Mixed", skill:"pictorial abstract", pages:"53-55", slo:"M-4-FR", goal:"Convert between improper fractions and mixed numbers", dur:"40", pdf:"1KpZI-4OdYwGXgJyaC3K7FpcUt6XJlOpb" },
+        { d:"Day 3", topic:"Equivalent Fractions", skill:"pictorial abstract", pages:"56-58", slo:"M-4-FR", goal:"Find equivalent fractions, simplify to lowest terms", dur:"40", pdf:"1XP054gtGhHngkRpvh7FpVkMYPgjFZIqe" },
+        { d:"Day 4", topic:"Comparing and Ordering Fractions", skill:"pictorial abstract", pages:"59-61", slo:"M-4-FR", goal:"Compare fractions, order fractions on number line", dur:"40", pdf:"1w3hyagIUAOu7Pnu0WoW3QAdYS5lVTsxu" },
+        { d:"Day 5", topic:"Addition of Like Fractions", skill:"pictorial abstract", pages:"62-64", slo:"M-4-FR", goal:"Add fractions with same denominator", dur:"40", pdf:"1kiL2ZGFJrzkWHBlWDAqouRFWZ7J0iGwE" },
+        { d:"Day 6", topic:"Subtraction of Like Fractions", skill:"pictorial abstract", pages:"65-67", slo:"M-4-FR", goal:"Subtract fractions with same denominator", dur:"40", pdf:"1MEJdJCqOxNx_LbmYDIjwpxip3GGLAkZa" },
+        { d:"Day 7", topic:"Fractions Word Problems", skill:"word problem", pages:"68-70", slo:"M-4-FR", goal:"Solve real-life fraction problems", dur:"40", pdf:"16pHOzJKYurUmCpv2n7oaSPPxLODFgSmV" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Whole Numbers + Whole Numbers", skill:"revision", pages:"53-55", slo:"M-4-FR", goal:"", dur:"30", pdf:"1OEOdCQJ7ip0i2W-QKiayRkXr3vi43MJX" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Factors and Multiples + Whole Numbers", skill:"revision", pages:"68-70", slo:"M-4-FR", goal:"", dur:"30", pdf:"1twE_lB6krK7uofWtdvYJBERavKGrpLTm" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Fractions", skill:"revision", pages:"50-70", slo:"M-4-FR", goal:"", dur:"30", pdf:"15_-uWprg98IsmjBY7FNwctXq2a_QWOq7" },
+      ] },
+    ],
+    "5": [
+      { num:1, title:"Whole Numbers and Operations", audio:"assets/audio/heart_maths_g5_ch1.mp3", days: [
         { d:"Day 1", topic:"Numbers up to 1,000,000", skill:"concrete", pages:"1-3", slo:"M-5-NS", goal:"Read and write numbers up to 1,000,000, place values", dur:"40", pdf:"14CaGFmRTk7xN1YxFrv2ssZpvwU06a0zl" },
         { d:"Day 2", topic:"Comparing and Ordering Large Numbers", skill:"pictorial abstract", pages:"4-5", slo:"M-5-NS", goal:"Compare and order numbers up to 1,000,000", dur:"40", pdf:"1hLyoVe9wtWrEkiiPYvqpmStZY1RvLnbw" },
         { d:"Day 3", topic:"Rounding Large Numbers", skill:"pictorial abstract", pages:"6-7", slo:"M-5-NS", goal:"Round numbers to nearest 10, 100, 1000, 10000", dur:"40", pdf:"1yH6qLRlnSPTr7AvVMNp8SgV8o8Fi0q-k" },
@@ -742,37 +903,88 @@ const LP_DATA = {
         { d:"Day 11", topic:"BODMAS / Order of Operations", skill:"pictorial abstract", pages:"23-25", slo:"M-5-OP", goal:"Apply BODMAS rule for mixed operations", dur:"40", pdf:"1vQoU9y0G1zbm879eTSk64n_N9N34VoOj" },
         { d:"Day 12", topic:"Operations Word Problems", skill:"word problem", pages:"26-29", slo:"M-5-NS, M-5-OP", goal:"Solve real-life problems with large numbers and mixed operations", dur:"40", pdf:"1cwLTM405iJClysWaDJxeXpnxL-kRKH8A" },
         { d:"📋 Ch. Review", topic:"Chapter Review: Whole Numbers and Operations", skill:"revision", pages:"1-29", slo:"M-5-DA", goal:"", dur:"30", pdf:"1Fq-ug_hJghQE4uZXpLEu7aW9GT-CpKE3" },
-      ]
-    },
+      ] },
+      { num:2, title:"HCF and LCM", audio:"assets/audio/heart_maths_g5_ch2.mp3", days: [
+        { d:"Day 1", topic:"Factors and Factor Pairs", skill:"concrete", pages:"30-31", slo:"M-5-NS", goal:"List all factors of a number, find factor pairs", dur:"40", pdf:"1jf96ZHFmHQC0l5sZion6xSIVjNZNjKBQ" },
+        { d:"Day 2", topic:"HCF by Factor Listing", skill:"pictorial abstract", pages:"32-33", slo:"M-5-NS", goal:"Find HCF by listing common factors", dur:"40", pdf:"1oVIAWisAUUoWSbDv_yQfofUvrF7blsX9" },
+        { d:"Day 3", topic:"HCF by Prime Factorization", skill:"pictorial abstract", pages:"34-35", slo:"M-5-NS", goal:"Find HCF using prime factorization", dur:"40", pdf:"1KbOl4m9zAHWEC6gEuWAHy7lAL3hg3Uuj" },
+        { d:"Day 4", topic:"LCM by Multiples Listing", skill:"pictorial abstract", pages:"36-37", slo:"M-5-NS", goal:"Find LCM by listing multiples", dur:"40", pdf:"1vfzrOh8-3uQmK1tEFXa4Giyo2lxVqMG6" },
+        { d:"Day 5", topic:"LCM by Prime Factorization", skill:"pictorial abstract", pages:"38-39", slo:"M-5-NS", goal:"Find LCM using prime factorization", dur:"40", pdf:"1Zd_cEvU-Yz1M62Mfc1-2hJnSeslRmF0m" },
+        { d:"Day 6", topic:"HCF and LCM Word Problems", skill:"word problem", pages:"40-41", slo:"M-5-NS", goal:"Apply HCF/LCM in real-life problems", dur:"40", pdf:"1Uh6QSSzFd0W6662oJW3oljFzUATDDjRL" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Whole Numbers and Operations", skill:"revision", pages:"34-35", slo:"M-5-NS", goal:"", dur:"30", pdf:"1JYl9hqZdTKcLWhNyCadqnJj5Lc7A7yoF" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: HCF and LCM", skill:"revision", pages:"30-41", slo:"M-5-NS", goal:"", dur:"30", pdf:"1T8tR2M_aK8d2Q7ozjKsvn3UxVfGGORIm" },
+      ] },
+      { num:3, title:"Fractions", audio:"assets/audio/heart_maths_g5_ch3.mp3", days: [
+        { d:"Day 1", topic:"Types of Fractions", skill:"concrete", pages:"42-43", slo:"M-5-FR", goal:"Identify proper, improper fractions and mixed numbers", dur:"40", pdf:"1PFBZK2XX7H_zrDMl8YprxaITCcG8mGmM" },
+        { d:"Day 2", topic:"Converting Improper ↔ Mixed", skill:"pictorial abstract", pages:"44-45", slo:"M-5-FR", goal:"Convert between improper fractions and mixed numbers", dur:"40", pdf:"1Jk7iBXKHapdpaXu_lIyrA39ZJwDec6wF" },
+        { d:"Day 3", topic:"Equivalent Fractions and Simplification", skill:"pictorial abstract", pages:"46-47", slo:"M-5-FR", goal:"Find equivalent fractions, reduce to lowest terms using GCF", dur:"40", pdf:"1dMVdFTPV9_MoAtsNQBhsyo4yFlyJPOzJ" },
+        { d:"Day 4", topic:"Comparing and Ordering Fractions", skill:"pictorial abstract", pages:"48", slo:"M-5-FR", goal:"Compare fractions with different denominators", dur:"40", pdf:"15hgO8xZQDfSrnhYj6TNk8UfMi_dsFNqt" },
+        { d:"Day 5", topic:"Addition of Fractions (Same Denominator)", skill:"pictorial abstract", pages:"49", slo:"M-5-FR", goal:"Add fractions with same denominator", dur:"40", pdf:"1rsha9LeF0L0lTfuJTkZsYoqp9dXqjIRr" },
+        { d:"Day 6", topic:"Addition of Fractions (Different Denominator)", skill:"pictorial abstract", pages:"50", slo:"M-5-FR", goal:"Add fractions with different denominators using LCM", dur:"40", pdf:"1Vk8Ztcn-rPnUAk1aMn2C7SJKTod1q01B" },
+        { d:"Day 7", topic:"Subtraction of Fractions", skill:"pictorial abstract", pages:"51-52", slo:"M-5-FR, M-5-OP", goal:"Subtract fractions with same and different denominators", dur:"40", pdf:"1qWQpzxVviW58bQ23sxooCcy9nyU4Xlww" },
+        { d:"Day 8", topic:"Multiplication of Fractions", skill:"pictorial abstract", pages:"53-54", slo:"M-5-FR, M-5-OP", goal:"Multiply fractions by whole numbers and other fractions", dur:"40", pdf:"1PtcDyqR413CiYVAlnxZgya31GZsyYrgz" },
+        { d:"Day 9", topic:"Fractions Word Problems", skill:"word problem", pages:"55-56", slo:"M-5-FR", goal:"Solve real-life fraction problems", dur:"40", pdf:"1Hbi4SVAm1NmWhYykIbdxuZuz4qlDKZcJ" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Whole Numbers and Operations + Whole Numbers and Operations", skill:"revision", pages:"44-45", slo:"M-5-FR", goal:"", dur:"30", pdf:"1_Og_s2wUBzOUT7jVcsTUfKyGU74jYZxK" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: HCF and LCM + Whole Numbers and Operations", skill:"revision", pages:"51-52", slo:"M-5-FR, M-5-OP", goal:"", dur:"30", pdf:"17mTwqJ3DaCdItBgRYtPzJLgiDqPboaxo" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Fractions", skill:"revision", pages:"42-56", slo:"M-5-FR", goal:"", dur:"30", pdf:"1TrH11FoJFGOP3rWIgIW_HBTlAQ-RLQmS" },
+      ] },
+    ],
   },
   "English": {
-    "1": {
-      title: "Time to Recall",
-      audio: "assets/audio/heart_english_g1.mp3",
-      days: [
+    "1": [
+      { num:1, title:"Time to Recall", audio:"assets/audio/heart_english_g1_ch1.mp3", days: [
         { d:"Day 1", topic:"Getting Started & Letter Sounds", skill:"pre reading", pages:"1-2", slo:"E-01-A1-01", goal:"Articulate sounds of letters of the alphabet", dur:"30", pdf:"169i7ilt-KhvnRb1i6l4L5lgPGIiwXSnK" },
         { d:"Day 2", topic:"Alphabet Sounds & Recognition", skill:"phonics", pages:"3-4", slo:"E-01-A1-01, E-01-A1-02", goal:"Articulate sounds of letters | Hold pencil correctly and trace lines", dur:"30", pdf:"1bFiyZgJV-ajXqnAnXQKQ7WJrEOXZA7-a" },
         { d:"Day 3", topic:"Letter Tracing & Writing", skill:"writing", pages:"5-7", slo:"E-01-A1-03, E-01-A1-04", goal:"Trace and write small and capital letters | Write letters in series and random order", dur:"30", pdf:"1HzYudlPOHCpFrNPCJyBwOmzt6rdWLIYT" },
         { d:"Day 4", topic:"Dictation & Word Tracing", skill:"writing", pages:"8", slo:"E-01-A1-05", goal:"Write letters of pronounced sounds and trace words", dur:"30", pdf:"1pCaMRXbV2sjsQvhH_wTx0vsAX6U5wk7j" },
         { d:"📋 Ch. Review", topic:"Chapter Review: Time to Recall", skill:"revision", pages:"1-8", slo:"E-01-A1-01", goal:"", dur:"30", pdf:"1x2CjLBd4cBUEhIX2l42x98nNv3CYcvcP" },
-      ]
-    },
-    "2": {
-      title: "A Tiny Creature",
-      audio: "assets/audio/heart_english_g2.mp3",
-      days: [
+      ] },
+      { num:2, title:"My Family and I", audio:"assets/audio/heart_english_g1_ch2.mp3", days: [
+        { d:"Day 1", topic:"Getting Started & Reading Passage", skill:"pre reading", pages:"9-11", slo:"E-01-B1-01", goal:"Use pre-reading strategies to predict a story", dur:"30", pdf:"1Xs5ix8IbPevSUSD1MegWxYstMEsmEqkc" },
+        { d:"Day 2", topic:"Letter Sounds & Speaking", skill:"oral communication", pages:"12-13", slo:"E-01-A1-06, E-01-A2-01", goal:"Pronounce and match initial sounds | Recognise individual sounds in words", dur:"30", pdf:"1Ft9F-5aYLQfWIi4E6OzDCj8m5BL9nCGu" },
+        { d:"Day 3", topic:"Comprehension & Vocabulary", skill:"reading comprehension", pages:"14-15", slo:"E-01-B2-01", goal:"Answer comprehension questions about the text", dur:"30", pdf:"1B-QbDkVW-FLbRNvoVN-1PLGbqDv-rgKj" },
+        { d:"Day 4", topic:"Grammar: Nouns & Pronouns", skill:"vocabulary grammar", pages:"16-17", slo:"E-01-C3-01", goal:"Identify and use nouns and pronouns", dur:"30", pdf:"1ViR907G_KHviDAOuXFqUMnJM-21hNxCl" },
+        { d:"Day 5", topic:"Writing: Syllables & Sentences", skill:"writing", pages:"18", slo:"E-01-D1-01", goal:"Read and write one-syllable words", dur:"30", pdf:"1plZZEhqoza7yKcsdy7VbUpE-wOSf0Dx9" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: My Family and I", skill:"revision", pages:"9-18", slo:"E-01-B1-01", goal:"", dur:"30", pdf:"1ympa7TEcBU2_3uJelTNAAG4DmYYAc5oK" },
+      ] },
+      { num:3, title:"Cobbler, Cobbler", audio:"assets/audio/heart_english_g1_ch3.mp3", days: [
+        { d:"Day 1", topic:"Getting Started & Poem", skill:"pre reading", pages:"19-21", slo:"E-01-B1-02", goal:"Recite short poems with actions", dur:"30", pdf:"1pjfJ9aTmGzzy9x2YwkmvcRKqIhrIz3NJ" },
+        { d:"Day 2", topic:"Consonant Blends & Speaking", skill:"phonics", pages:"22-23", slo:"E-01-A1-07", goal:"Use common consonant blends bl, cl, br, dr", dur:"30", pdf:"1hb7kyvcWKc6NehVISefcvZTPPKEMGPq-" },
+        { d:"Day 3", topic:"Comprehension & Vocabulary", skill:"reading comprehension", pages:"24-25", slo:"E-01-B2-02", goal:"Answer comprehension questions about the poem", dur:"30", pdf:"1ovKsSqB-OM10flfpqxEIH5rblAjTeF_1" },
+        { d:"Day 4", topic:"Grammar: Verbs & Adjectives", skill:"vocabulary grammar", pages:"26", slo:"E-01-C3-02", goal:"Identify and use verbs and adjectives of colour", dur:"30", pdf:"1JZ0yyCA1XiqEQ4gjuLSv7yNdvqOXAqMt" },
+        { d:"Day 5", topic:"Creative Writing", skill:"writing", pages:"27", slo:"E-01-D1-02", goal:"Write sentences using naming and action words", dur:"30", pdf:"1vYOFz9Y7ewsmZVdD_h26NpW6x-mkLCZo" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Cobbler, Cobbler", skill:"revision", pages:"19-27", slo:"E-01-A1-07", goal:"", dur:"30", pdf:"1mzyo4ciC3XycLsQuIpWVZ9_DeFx0Ae5U" },
+      ] },
+    ],
+    "2": [
+      { num:1, title:"A Tiny Creature", audio:"assets/audio/heart_english_g2_ch1.mp3", days: [
         { d:"Day 1", topic:"Getting Started & Poem", skill:"pre reading", pages:"1-3", slo:"E-02-B1-01", goal:"Recite poems and use pre-reading strategies", dur:"30", pdf:"1YcVcOYzcem8ytm6LzebY1fkci0P6c72Q" },
         { d:"Day 2", topic:"Initial/Final Sounds & Digraphs", skill:"phonics", pages:"4", slo:"E-02-A1-01", goal:"Pronounce and match initial and final sounds", dur:"30", pdf:"1RbyLs4fUh2VDKYRLiHsaYV-mMTwdAP1f" },
         { d:"Day 3", topic:"Comprehension & Vocabulary", skill:"reading comprehension", pages:"5-7", slo:"E-02-B2-01", goal:"Answer wh-questions and comprehend poems", dur:"30", pdf:"1piPBIOgJikXkNcsHRY9xitVL2KbLIJhm" },
         { d:"Day 4", topic:"Spelling & Grammar: Nouns/Pronouns", skill:"vocabulary grammar", pages:"8-9", slo:"E-02-C3-01", goal:"Identify nouns and use pronouns", dur:"30", pdf:"1U-dDqxepgnw-Y7hsb_9nTbRww67IXeWs" },
         { d:"Day 5", topic:"Writing: Two-Syllable Words & Creative Writing", skill:"writing", pages:"10", slo:"E-02-D1-01", goal:"Write two-syllable words and creative sentences", dur:"30", pdf:"1iXoey9T909mGh1SEsP_SFVYpoBZiOXAE" },
         { d:"📋 Ch. Review", topic:"Chapter Review: A Tiny Creature", skill:"revision", pages:"1-10", slo:"E-02-A1-01", goal:"", dur:"30", pdf:"1UzOFlI-NuakIBEV_MzjbPuIO8qHkIn3B" },
-      ]
-    },
-    "3": {
-      title: "All are Welcome",
-      audio: "assets/audio/heart_english_g3.mp3",
-      days: [
+      ] },
+      { num:2, title:"My Home and City", audio:"assets/audio/heart_english_g2_ch2.mp3", days: [
+        { d:"Day 1", topic:"Getting Started & Reading Passage", skill:"pre reading", pages:"11-13", slo:"E-02-B1-02", goal:"Use pre-reading strategies to predict a story", dur:"30", pdf:"1ShL8N17MuefAiBjgRyQkw8NdDF82iC_k" },
+        { d:"Day 2", topic:"Consonants/Vowels & Blends", skill:"phonics", pages:"14-15", slo:"E-02-A1-02", goal:"Identify consonants, vowels, and consonant blends", dur:"30", pdf:"1L1_Y9qg4hmj3Ez9h8fiqQWTe9w7lsnua" },
+        { d:"Day 3", topic:"Comprehension & Vocabulary", skill:"reading comprehension", pages:"16-17", slo:"E-02-B2-02", goal:"Answer comprehension questions about the story", dur:"30", pdf:"1ivaNP0nLmbdTOczFPCMkGCLbMg-mgZW7" },
+        { d:"Day 4", topic:"Grammar: Adjectives & Action Words", skill:"vocabulary grammar", pages:"18", slo:"E-02-C3-02", goal:"Use adjectives and action words", dur:"30", pdf:"1CvqEUJ-KBr4LUFGSTuZ8guWjyEh0STSB" },
+        { d:"Day 5", topic:"Writing: My Home & City", skill:"writing", pages:"19", slo:"E-02-D1-02", goal:"Write sentences about home and city", dur:"30", pdf:"1KzChcoOrlqKq3Z5Kqbgzpb8Nt6KvbDNY" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: My Home and City", skill:"revision", pages:"11-19", slo:"E-02-A1-02", goal:"", dur:"30", pdf:"1w_U4uJFU7rDHE-LKFcj6JuYREhEFnQEh" },
+      ] },
+      { num:3, title:"Let's Plant Trees", audio:"assets/audio/heart_english_g2_ch3.mp3", days: [
+        { d:"Day 1", topic:"Getting Started & Reading Passage", skill:"pre reading", pages:"20-22", slo:"E-02-B1-03", goal:"Use pre-reading strategies to predict a story", dur:"30", pdf:"1u7JCvjXYEWbLtjgZl20VizWk28-GnnPJ" },
+        { d:"Day 2", topic:"Digraphs & Speaking", skill:"phonics", pages:"23", slo:"E-02-A1-03", goal:"Read digraphs in initial and final positions", dur:"30", pdf:"1EtXuocfSu9htwtDw8B9g-SSKyeUkVFAy" },
+        { d:"Day 3", topic:"Comprehension & Vocabulary", skill:"reading comprehension", pages:"24-26", slo:"E-02-B2-03", goal:"Answer comprehension questions about planting", dur:"30", pdf:"1zGDjiD-FPYyNCGMeaaaxTSOqvIiO2Eu-" },
+        { d:"Day 4", topic:"Grammar: Singular/Plural & Prepositions", skill:"vocabulary grammar", pages:"27", slo:"E-02-C3-03", goal:"Use singular/plural nouns and prepositions", dur:"30", pdf:"19W7RG3uQ2hK2LvCMyzKTm8-r_-a2Va7n" },
+        { d:"Day 5", topic:"Writing: Paragraph Completion & Creative Writing", skill:"writing", pages:"28", slo:"E-02-D1-03", goal:"Complete paragraphs and write creatively", dur:"30", pdf:"1Rjedxn0d_7aTB2Q0xAqCEDqOAJXQqaFe" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: A Tiny Creature", skill:"revision", pages:"28", slo:"E-02-D1-03", goal:"", dur:"30", pdf:"1wgSIDjY9Cqg6FR_Xy6mg2VmyB7pxJ7zz" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Let's Plant Trees", skill:"revision", pages:"20-28", slo:"E-02-A1-03", goal:"", dur:"30", pdf:"1_GM_dswfalm-3Fk2t6_PNJtfJQjzAkSv" },
+      ] },
+    ],
+    "3": [
+      { num:1, title:"All are Welcome", audio:"assets/audio/heart_english_g3_ch1.mp3", days: [
         { d:"Day 1", topic:"Getting Started & Let's Talk", skill:"pre reading", pages:"1-2", slo:"E-03-B1-01", goal:"Use pre-reading strategies", dur:"30", pdf:"1_yowevfiKDq1hz9aMPfjg0juThpJ1laH" },
         { d:"Day 2", topic:"Reading Passage & Questions", skill:"oral communication", pages:"3", slo:"E-03-A2-01", goal:"Read aloud with expression", dur:"30", pdf:"1i3Kssh_flNFVS2mI-IgxTxmc7qGH-NwT" },
         { d:"Day 3", topic:"Phonics: Soft c/g & Consonant Clusters", skill:"phonics", pages:"4", slo:"E-03-A1-01", goal:"Identify soft c/g sounds and consonant clusters", dur:"30", pdf:"1gL-a9O_j70AEm8xrVmLTT1WRIyInNB9L" },
@@ -782,12 +994,27 @@ const LP_DATA = {
         { d:"Day 7", topic:"Grammar: Nouns & Sentence Making", skill:"vocabulary grammar", pages:"9", slo:"E-03-C3-01", goal:"Identify proper/common nouns and make sentences", dur:"30", pdf:"1eskFw37ovX1LP3PUWWQDlqQG8WZFi7lo" },
         { d:"Day 8", topic:"Writing: Syllables & Creative Writing", skill:"writing", pages:"10-11", slo:"E-03-D1-01", goal:"Write with correct capitalisation and syllable division", dur:"30", pdf:"1vK4cEhpQ76ASaCIr0sRwVc3pgik70zPL" },
         { d:"📋 Ch. Review", topic:"Chapter Review: All are Welcome", skill:"revision", pages:"1-11", slo:"E-03-A1-01", goal:"", dur:"30", pdf:"1JHD-Wh2HXojbxGYsZ2JFyVx8TTCKQOvP" },
-      ]
-    },
-    "4": {
-      title: "Great Caliphs of Islam",
-      audio: "assets/audio/heart_english_g4.mp3",
-      days: [
+      ] },
+      { num:2, title:"Gifts of Nature", audio:"assets/audio/heart_english_g3_ch2.mp3", days: [
+        { d:"Day 1", topic:"Getting Started & Poem", skill:"pre reading", pages:"12-13", slo:"E-03-B1-02", goal:"Use pre-reading strategies", dur:"30", pdf:"1UbLwq4gNXg6spcZvI2uBmCQjRv6hAadX" },
+        { d:"Day 2", topic:"Phonics & Speaking", skill:"phonics", pages:"14-15", slo:"E-03-A1-02", goal:"Identify letter sounds", dur:"30", pdf:"1vJEzF4R3pKcBzCyY0TXNS-0MIm5O9Iw7" },
+        { d:"Day 3", topic:"Comprehension", skill:"reading comprehension", pages:"16-17", slo:"E-03-B2-02", goal:"Answer comprehension questions", dur:"30", pdf:"16C4nN_j0JwD0LHxFzEZB0ZKPUcx23TbJ" },
+        { d:"Day 4", topic:"Vocabulary & Grammar", skill:"vocabulary grammar", pages:"18-19", slo:"E-03-C1-02", goal:"Build vocabulary and apply grammar", dur:"30", pdf:"1zQ1xquj-YECkiJ_SBo46w2a9DQqYhyv5" },
+        { d:"Day 5", topic:"Writing", skill:"writing", pages:"20-21", slo:"E-03-D1-02", goal:"Write guided and creative compositions", dur:"30", pdf:"11qFuylP8JY0LA8VXuF1RvtDsBZSsZrEB" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Gifts of Nature", skill:"revision", pages:"12-21", slo:"E-03-A1-02", goal:"", dur:"30", pdf:"1_LYCsuU53w5cavxujH_QwW_dAOXIY9fz" },
+      ] },
+      { num:3, title:"The People I Love", audio:"assets/audio/heart_english_g3_ch3.mp3", days: [
+        { d:"Day 1", topic:"Getting Started & Reading Passage", skill:"pre reading", pages:"22-24", slo:"E-03-B1-03", goal:"Use pre-reading strategies", dur:"30", pdf:"12I-wvE9TasWEGAgXJbWIKQoyrr2kG8yS" },
+        { d:"Day 2", topic:"Phonics & Speaking", skill:"phonics", pages:"25-26", slo:"E-03-A1-03", goal:"Practise phonics and speaking", dur:"30", pdf:"1l8_cQsQnMRDOEm5sLHnSRV8f9gb3YmFQ" },
+        { d:"Day 3", topic:"Comprehension", skill:"reading comprehension", pages:"27-28", slo:"E-03-B2-03", goal:"Answer comprehension questions", dur:"30", pdf:"1l_SUqnyR4n4DIjb1hkazzeODRm26I7IJ" },
+        { d:"Day 4", topic:"Vocabulary & Grammar", skill:"vocabulary grammar", pages:"29-30", slo:"E-03-C1-03", goal:"Build vocabulary and apply grammar", dur:"30", pdf:"1J0wCSByMGOvG21Ukg_Q7Sa7lj_YOiMUg" },
+        { d:"Day 5", topic:"Writing", skill:"writing", pages:"31-32", slo:"E-03-D1-03", goal:"Write about people they love", dur:"30", pdf:"1mEZB07sL6zT6J9_gahWxpTRiWa4t2AYO" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: All are Welcome", skill:"revision", pages:"25-26", slo:"E-03-A1-03", goal:"", dur:"30", pdf:"1LqYy7_PKXEmc3lUk8yIzZog_GJjQghtH" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: The People I Love", skill:"revision", pages:"22-32", slo:"E-03-A1-03", goal:"", dur:"30", pdf:"1f58wbFVYTjfi5r3dyRQxq55kJ3KWnOuS" },
+      ] },
+    ],
+    "4": [
+      { num:1, title:"Great Caliphs of Islam", audio:"assets/audio/heart_english_g4_ch1.mp3", days: [
         { d:"Day 1", topic:"Getting Started & Reading Passage", skill:"pre reading", pages:"1-4", slo:"E-04-B1-01", goal:"Use pre-reading strategies and prior knowledge", dur:"30", pdf:"1JguDZqnuVw0u4wKVa_eTaCCgP-bduqib" },
         { d:"Day 2", topic:"Phonics: Vowel Sounds & Speaking", skill:"phonics", pages:"5", slo:"E-04-A1-01", goal:"Identify vowel sounds", dur:"30", pdf:"1wHuMb91xLntvxaOFwyzhkIw1VUYS_DMm" },
         { d:"Day 3", topic:"Comprehension & Analytical Reading", skill:"reading comprehension", pages:"6-7", slo:"E-04-B2-01", goal:"Answer comprehension and analytical questions", dur:"30", pdf:"1tqz8hDohIezwJvRy3k9G9WtavSwxAdij" },
@@ -795,85 +1022,202 @@ const LP_DATA = {
         { d:"Day 5", topic:"Grammar: Nouns, Articles & Capitalisation", skill:"vocabulary grammar", pages:"10-11", slo:"E-04-C3-01", goal:"Use articles and capitalisation correctly", dur:"30", pdf:"1Gay5m41GrVM9hOsLqEZuxZ7ApFLPhw6h" },
         { d:"Day 6", topic:"Writing: Comprehension & Creative Writing", skill:"writing", pages:"12", slo:"E-04-D1-01", goal:"Write topic sentences and creative compositions", dur:"30", pdf:"1TEZOapj-OhfUgteA18bAA4-CougbkTko" },
         { d:"📋 Ch. Review", topic:"Chapter Review: Great Caliphs of Islam", skill:"revision", pages:"1-12", slo:"E-04-A1-01", goal:"", dur:"30", pdf:"1nSH0VFWeg1vjrNjJ1zxz739cGzctRHg_" },
-      ]
-    },
-    "5": {
-      title: "Patience",
-      audio: "assets/audio/heart_english_g5.mp3",
-      days: [
+      ] },
+      { num:2, title:"Beauty of Nature", audio:"assets/audio/heart_english_g4_ch2.mp3", days: [
+        { d:"Day 1", topic:"Getting Started & Poem", skill:"pre reading", pages:"13-14", slo:"E-04-B1-02", goal:"Use pre-reading strategies", dur:"30", pdf:"1XKKS67gtQ7U4vzRmtdwdYlFNe9TLCmI1" },
+        { d:"Day 2", topic:"Phonics & Speaking", skill:"phonics", pages:"15", slo:"E-04-A1-02", goal:"Practise phonics", dur:"30", pdf:"1MJ4Jv80KaWs06lNjXvzzpVejAiPY2O6a" },
+        { d:"Day 3", topic:"Comprehension", skill:"reading comprehension", pages:"16-17", slo:"E-04-B2-02", goal:"Answer comprehension questions", dur:"30", pdf:"1paLRATTygxptgzHhdYP9nFo7wNKsADjr" },
+        { d:"Day 4", topic:"Vocabulary & Grammar", skill:"vocabulary grammar", pages:"18-19", slo:"E-04-C1-02", goal:"Build vocabulary and apply grammar", dur:"30", pdf:"1zRStPbWyI_FietRba0hw29KOSW9EyYDl" },
+        { d:"Day 5", topic:"Writing", skill:"writing", pages:"20-21", slo:"E-04-D1-02", goal:"Write compositions about nature", dur:"30", pdf:"1puvzlgsoJj60wvn4FvjsOn8a0sdYpTE6" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Beauty of Nature", skill:"revision", pages:"13-21", slo:"E-04-A1-02", goal:"", dur:"30", pdf:"13UAz5nmZQJ97ivwKTX6WXQ8CHqum_pB2" },
+      ] },
+      { num:3, title:"The Journey of Chocolate", audio:"assets/audio/heart_english_g4_ch3.mp3", days: [
+        { d:"Day 1", topic:"Getting Started & Reading Passage", skill:"pre reading", pages:"22-24", slo:"E-04-B1-03", goal:"Use pre-reading strategies", dur:"30", pdf:"1M1OYYagDTlx8PpHxhsxIL-dDXE7Hvkzv" },
+        { d:"Day 2", topic:"Phonics & Speaking", skill:"phonics", pages:"25", slo:"E-04-A1-03", goal:"Practise phonics", dur:"30", pdf:"1QMGaQ0tH0MxJPSIgZk43wDFzwCOKX2jX" },
+        { d:"Day 3", topic:"Comprehension", skill:"reading comprehension", pages:"26-27", slo:"E-04-B2-03", goal:"Answer comprehension questions", dur:"30", pdf:"1VQyh5NNsw_5Ip8B2mdiyUDU43ZDYuomI" },
+        { d:"Day 4", topic:"Vocabulary & Grammar", skill:"vocabulary grammar", pages:"28-29", slo:"E-04-C1-03", goal:"Build vocabulary and apply grammar", dur:"30", pdf:"1RR4oYjwrrPPe2TUhw_tFIqdR761AJLtz" },
+        { d:"Day 5", topic:"Writing", skill:"writing", pages:"30", slo:"E-04-D1-03", goal:"Write about chocolate journey", dur:"30", pdf:"1kJ-t6r_Bmyuy3BjhSx34SRse0EHTuTSB" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Great Caliphs of Islam", skill:"revision", pages:"28-29", slo:"E-04-C1-03", goal:"", dur:"30", pdf:"1O3sMVkz0GNa49zbgBZ-pdFPmLm7sC08y" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: The Journey of Chocolate", skill:"revision", pages:"22-30", slo:"E-04-A1-03", goal:"", dur:"30", pdf:"1o1ei2N_G9f2HKAFskTVDJKDN_cmvPxk2" },
+      ] },
+    ],
+    "5": [
+      { num:1, title:"Patience", audio:"assets/audio/heart_english_g5_ch1.mp3", days: [
         { d:"Day 1", topic:"Getting Started & Reading Passage", skill:"pre reading", pages:"1-3", slo:"E-05-B1-01", goal:"Use pre-reading strategies and prior knowledge", dur:"30", pdf:"16Lq3QMeXFBFi5NHrFu6vO8fx34us7tow" },
         { d:"Day 2", topic:"Phonics: Silent Letters & Speaking", skill:"phonics", pages:"4", slo:"E-05-A1-01", goal:"Identify and pronounce words with silent letters", dur:"30", pdf:"1a6zebW7Rdaiog3BfNzRF0w6dYKca8OYS" },
         { d:"Day 3", topic:"Comprehension & Analytical Reading", skill:"reading comprehension", pages:"5-6", slo:"E-05-B2-01", goal:"Answer comprehension and analytical questions", dur:"30", pdf:"1-jyzFBXhJbUpY_VhoSTjPGKCzPbLnMV7" },
         { d:"Day 4", topic:"Vocabulary & Grammar", skill:"vocabulary grammar", pages:"7-9", slo:"E-05-C1-01, E-05-C3-01", goal:"Build vocabulary, use nouns and adjectives", dur:"30", pdf:"1ozY99xA2OG4LDLJ9SwkYYG-bX-i5RfL3" },
         { d:"Day 5", topic:"Writing: Topic Sentences & Creative Writing", skill:"writing", pages:"10-11", slo:"E-05-D1-01", goal:"Write topic sentences and creative compositions", dur:"30", pdf:"10cbeBq-xosLYLLHIx60De_3fmfIE4Rwh" },
         { d:"📋 Ch. Review", topic:"Chapter Review: Patience", skill:"revision", pages:"1-11", slo:"E-05-A1-01", goal:"", dur:"30", pdf:"1DcY38yyciySNKW7bQFSyJEiBdAL9pCet" },
-      ]
-    },
+      ] },
+      { num:2, title:"Be Grateful", audio:"assets/audio/heart_english_g5_ch2.mp3", days: [
+        { d:"Day 1", topic:"Getting Started & Reading Passage", skill:"pre reading", pages:"12-14", slo:"E-05-B1-02", goal:"Use pre-reading strategies", dur:"30", pdf:"1csZpH87dOwrfBauM2QqnVCcCn9527Ba_" },
+        { d:"Day 2", topic:"Phonics & Speaking", skill:"phonics", pages:"15-16", slo:"E-05-A1-02", goal:"Practise phonics", dur:"30", pdf:"1iwQc12r3cpGfQccj0Zl8A23mZz7Hm_zN" },
+        { d:"Day 3", topic:"Comprehension", skill:"reading comprehension", pages:"17-18", slo:"E-05-B2-02", goal:"Answer comprehension questions", dur:"30", pdf:"10wcfnSzudeiwKUjVXn20mQTTMJVmoDW8" },
+        { d:"Day 4", topic:"Vocabulary & Grammar", skill:"vocabulary grammar", pages:"19-22", slo:"E-05-C1-02", goal:"Build vocabulary and apply grammar", dur:"30", pdf:"1klnQV_5LPjUvyP8axJOW2HJMGrGtvwlT" },
+        { d:"Day 5", topic:"Writing", skill:"writing", pages:"23-24", slo:"E-05-D1-02", goal:"Write compositions about gratitude", dur:"30", pdf:"1k8KtlVZv7o2ctDs_b_EqLdyDf2NYiRry" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Be Grateful", skill:"revision", pages:"12-24", slo:"E-05-A1-02", goal:"", dur:"30", pdf:"118zHKWKKwLHoXN5wod870XoY-myA-cRD" },
+      ] },
+      { num:3, title:"Women as Role Models", audio:"assets/audio/heart_english_g5_ch3.mp3", days: [
+        { d:"Day 1", topic:"Getting Started & Reading Passage", skill:"pre reading", pages:"25-27", slo:"E-05-B1-03", goal:"Use pre-reading strategies", dur:"30", pdf:"1lQ4kGo5WhmI0ucpRdQtFW37p8ndLDqYe" },
+        { d:"Day 2", topic:"Phonics & Speaking", skill:"phonics", pages:"28", slo:"E-05-A1-03", goal:"Practise phonics", dur:"30", pdf:"18bizaD8237cXWYS8dnXXHCfbhWC3omjk" },
+        { d:"Day 3", topic:"Comprehension", skill:"reading comprehension", pages:"29-30", slo:"E-05-B2-03", goal:"Answer comprehension questions", dur:"30", pdf:"1zEpl-Crmb2o_h7JpCeWmztr7d-tn5_gL" },
+        { d:"Day 4", topic:"Vocabulary & Grammar", skill:"vocabulary grammar", pages:"31-32", slo:"E-05-C1-03", goal:"Build vocabulary and apply grammar", dur:"30", pdf:"1oKLvAkTsNT8ZrArtrdpW7QBW6QR7OWkH" },
+        { d:"Day 5", topic:"Writing", skill:"writing", pages:"33-34", slo:"E-05-D1-03", goal:"Write about women role models", dur:"30", pdf:"1QGblzpvLMcw-a4Z1gilPk4JwJxoHVhMp" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: Patience", skill:"revision", pages:"33-34", slo:"E-05-D1-03", goal:"", dur:"30", pdf:"1qeas799yheWVgXJnnzeu3Yw_6VWNu1tr" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: Women as Role Models", skill:"revision", pages:"25-34", slo:"E-05-A1-03", goal:"", dur:"30", pdf:"1GbU-i0-hVz3ac7Yt6Nhf_deNnTw2UitJ" },
+      ] },
+    ],
   },
   "Urdu": {
-    "1": {
-      title: "حمد",
-      audio: "assets/audio/heart_urdu_g1.mp3",
-      days: [
+    "1": [
+      { num:0, title:"قاعدہ (Qaida)", audio:"assets/audio/heart_urdu_g1_ch0.mp3", days: [
+        { d:"Day 1", topic:"حروف تہجی کی پہچان - تصویری حروف", skill:"arkaan saazi", pages:"1-9", slo:"U-1-AS", goal:"حروف تہجی کو تصویروں سے پہچاننا اور ان کی شکلیں سیکھنا", dur:"40", pdf:"1z816NPMVezviAK2WWDb27i0Pq3iZvIKQ" },
+        { d:"Day 2", topic:"حروف کی شکلیں اور لکھائی", skill:"arkaan saazi", pages:"10-19", slo:"U-1-AS", goal:"حروف کی مختلف شکلیں (ابتدائی، درمیانی، آخری) سیکھنا", dur:"40", pdf:"15QZGbPtqp6XwpEEHClVvVW4p_Gy5gGdY" },
+        { d:"Day 3", topic:"سادہ الفاظ اور نظر سے پڑھنا", skill:"arkaan saazi", pages:"20-29", slo:"U-1-AS", goal:"سادہ الفاظ بنانا اور نظری الفاظ پڑھنا", dur:"40", pdf:"1GQ0wOXPsBxDd-Yg4OcVEGZJCofyuAJOK" },
+        { d:"Day 4", topic:"حرکات اور اعراب", skill:"arkaan saazi", pages:"30-39", slo:"U-1-AS", goal:"زبر، زیر، پیش کی پہچان اور الفاظ میں استعمال", dur:"40", pdf:"1ekYEPc6dUtoDsOIz8yHSWlWEn9pjnAX4" },
+        { d:"Day 5", topic:"مد اور تنوین", skill:"arkaan saazi", pages:"40-49", slo:"U-1-AS", goal:"واؤ معروف، الف مد اور تنوین سیکھنا", dur:"40", pdf:"1eNX-dr9UrEa3wQZCi8EduTREJA0bUgeG" },
+        { d:"Day 6", topic:"الفاظ ملانا اور جوڑنا", skill:"arkaan saazi", pages:"50-59", slo:"U-1-AS", goal:"حروف کو ملا کر الفاظ بنانا اور پڑھنا", dur:"40", pdf:"19yn5Uy0RacymXYYFl5an8wK6-mUVHv6v" },
+        { d:"Day 7", topic:"شد اور تشدید", skill:"arkaan saazi", pages:"60-67", slo:"U-1-AS", goal:"شد اور تشدید والے الفاظ پڑھنا اور لکھنا", dur:"40", pdf:"14hY0HBDuk2PcPehSYxHOKrkBswM1kp6X" },
+        { d:"Day 8", topic:"سادہ جملے پڑھنا", skill:"buland khwani", pages:"68-74", slo:"U-1-BK", goal:"سادہ جملے اور مختصر عبارت پڑھنا", dur:"40", pdf:"1_Xpv5yPrZO-iCzWSFgKSoCIQrFJAziw6" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: قاعدہ (Qaida)", skill:"duhrai", pages:"1-74", slo:"U-1-AS", goal:"", dur:"30", pdf:"1ETPT1LPZJDiNi8nAFM938R_7q7H8eNTR" },
+      ] },
+      { num:1, title:"حمد", audio:"assets/audio/heart_urdu_g1_ch1.mp3", days: [
         { d:"Day 1", topic:"حمد - بلند خوانی", skill:"buland khwani", pages:"75-76", slo:"U-1-BK", goal:"نظم حمد کو درست تلفظ سے پڑھنا", dur:"40", pdf:"12Eo8VDAnsEfL3vGoMQZDDRUaDNHETYjn" },
         { d:"Day 2", topic:"حمد - الفاظ و معانی", skill:"alfaaz maani", pages:"77", slo:"U-1-AM", goal:"نظم حمد کے نئے الفاظ کے معانی سمجھنا", dur:"40", pdf:"1BnakYS4uwun2ywyXU39qiuq9Ol5eSJ6A" },
         { d:"Day 3", topic:"حمد - تفہیم", skill:"tafheem", pages:"78", slo:"U-1-TF", goal:"نظم حمد سے متعلق سوالات کے جوابات دینا", dur:"40", pdf:"1tptaNS4QPhLzWdeLV6m79WZ2okd3w15Z" },
         { d:"Day 4", topic:"حمد - ارکان سازی", skill:"arkaan saazi", pages:"79", slo:"U-1-AS", goal:"ہم آواز الفاظ بنانا اور الفاظ پڑھنا", dur:"40", pdf:"1C6zd-KUSiDrVAWF8M-A7pA9Okzqp_mOo" },
         { d:"Day 5", topic:"حمد - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"80", slo:"U-1-TL", goal:"تصویریں دیکھ کر نعمتوں کا چارٹ بنانا", dur:"40", pdf:"1rmDXNseRKmVub7k7TtcpGyIpct1kMLbn" },
         { d:"📋 Ch. Review", topic:"Chapter Review: حمد", skill:"duhrai", pages:"75-80", slo:"U-1-AM", goal:"", dur:"30", pdf:"19uH3gKrHiqH8ML6pQYs1K1d0vjbNAYB0" },
-      ]
-    },
-    "2": {
-      title: "حمد",
-      audio: "assets/audio/heart_urdu_g2.mp3",
-      days: [
+      ] },
+      { num:2, title:"نعت", audio:"assets/audio/heart_urdu_g1_ch2.mp3", days: [
+        { d:"Day 1", topic:"نعت - بلند خوانی", skill:"buland khwani", pages:"81-82", slo:"U-1-BK", goal:"نظم نعت کو درست تلفظ اور لے سے پڑھنا", dur:"40", pdf:"18KnbO32u3vZ1toiuAmt2tv6ocEu3csMf" },
+        { d:"Day 2", topic:"نعت - الفاظ و معانی", skill:"alfaaz maani", pages:"83", slo:"U-1-AM", goal:"نعت کے نئے الفاظ کے معانی سمجھنا", dur:"40", pdf:"1zbDC-5uRFwdHrBsElVKkiNYJEXdIruym" },
+        { d:"Day 3", topic:"نعت - تفہیم و ارکان سازی", skill:"tafheem", pages:"84-85", slo:"U-1-TF", goal:"نعت سے متعلق سوالات اور لفظوں کا کھیل", dur:"40", pdf:"1kHtsoLiStSfUozd51vUM_lj_RnvfU_Bz" },
+        { d:"Day 4", topic:"نعت - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"86", slo:"U-1-TL", goal:"نعت سے متعلق لکھائی کی مشقیں", dur:"40", pdf:"1jHcwi2oJAK0aVtj518MlqkZoZmOLsRXQ" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: قاعدہ (Qaida)", skill:"duhrai", pages:"83", slo:"U-1-AM", goal:"", dur:"30", pdf:"1t3b5VNeqL3eX6U2uT4FKPAbq6e6eP5rr" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: نعت", skill:"duhrai", pages:"81-86", slo:"U-1-AM", goal:"", dur:"30", pdf:"1xsLctjaqPXKroljnwbVYKPFVu8XmEnrZ" },
+      ] },
+      { num:3, title:"آخری رسول ﷺ", audio:"assets/audio/heart_urdu_g1_ch3.mp3", days: [
+        { d:"Day 1", topic:"آخری رسول ﷺ - بلند خوانی", skill:"buland khwani", pages:"87-88", slo:"U-1-BK", goal:"سبق آخری رسول ﷺ کو روانی سے پڑھنا", dur:"40", pdf:"" },
+        { d:"Day 2", topic:"آخری رسول ﷺ - الفاظ و معانی", skill:"alfaaz maani", pages:"89", slo:"U-1-AM", goal:"سبق کے نئے الفاظ کے معانی سمجھنا", dur:"40", pdf:"" },
+        { d:"Day 3", topic:"آخری رسول ﷺ - تفہیم", skill:"tafheem", pages:"90", slo:"U-1-TF", goal:"سبق سے متعلق سوالات کے جوابات", dur:"40", pdf:"" },
+        { d:"Day 4", topic:"آخری رسول ﷺ - قواعد و لکھائی", skill:"qawaid", pages:"91", slo:"U-1-QW", goal:"اسم کی پہچان اور سادہ قواعد", dur:"40", pdf:"" },
+        { d:"Day 5", topic:"آخ��ی رسول ﷺ - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"92", slo:"U-1-TL", goal:"سبق سے متعلق لکھائی کی سرگرمی", dur:"40", pdf:"" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: حمد + قاعدہ (Qaida)", skill:"duhrai", pages:"90", slo:"U-1-TF", goal:"", dur:"30", pdf:"" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: آخری رسول ﷺ", skill:"duhrai", pages:"87-91", slo:"U-1-AM", goal:"", dur:"30", pdf:"" },
+      ] },
+    ],
+    "2": [
+      { num:1, title:"حمد", audio:"assets/audio/heart_urdu_g2_ch1.mp3", days: [
         { d:"Day 1", topic:"حمد - بلند خوانی", skill:"buland khwani", pages:"1-2", slo:"U-2-BK", goal:"نظم حمد کو درست تلفظ و ترنم سے پڑھنا", dur:"40", pdf:"1oS6HQwtPWibvbDp5VCKZ-PbQQ-LTz4jk" },
         { d:"Day 2", topic:"حمد - الفاظ و معانی", skill:"alfaaz maani", pages:"3", slo:"U-2-AM", goal:"نظم کے نئے الفاظ کے معانی", dur:"40", pdf:"1WpiL--k3CHEUctn2Cngx03-99mcL0zIH" },
         { d:"Day 3", topic:"حمد - تفہیم", skill:"tafheem", pages:"4-5", slo:"U-2-TF", goal:"نظم سے متعلق سوالات و لفظوں کا کھیل", dur:"40", pdf:"1-6nOj_O1YGta5K98cudG4t6UagZzwgdE" },
         { d:"Day 4", topic:"حمد - قواعد", skill:"qawaid", pages:"6", slo:"U-2-QW", goal:"اسم اور صفت کی پہچان", dur:"40", pdf:"1nB7xKswccaNqP8_Exm8ahyrFVaXxE6mT" },
         { d:"Day 5", topic:"حمد - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"7-8", slo:"U-2-TL", goal:"اللہ کی نعمتوں کے بارے میں لکھنا", dur:"40", pdf:"15IcC3ph3_X3yIQ0Stj1cHaH97o5BEkqo" },
         { d:"📋 Ch. Review", topic:"Chapter Review: حمد", skill:"duhrai", pages:"1-8", slo:"U-2-AM", goal:"", dur:"30", pdf:"1BvdOnZOr2oTMUc5Veoi7mlU2TYef31xp" },
-      ]
-    },
-    "3": {
-      title: "حمد",
-      audio: "assets/audio/heart_urdu_g3.mp3",
-      days: [
+      ] },
+      { num:2, title:"نعت", audio:"assets/audio/heart_urdu_g2_ch2.mp3", days: [
+        { d:"Day 1", topic:"نعت - بلند خوانی", skill:"buland khwani", pages:"9-10", slo:"U-2-BK", goal:"نعت کو ترنم سے پڑھنا", dur:"40", pdf:"1XLp2ez_3UCvLtG4qu9kbRmN2Rby5OKhO" },
+        { d:"Day 2", topic:"نعت - الفاظ و معانی", skill:"alfaaz maani", pages:"11", slo:"U-2-AM", goal:"نعت کے الفاظ کے معانی", dur:"40", pdf:"1g2-7XC7YbHSzSSIul6gvwZ3WSDEv4jn-" },
+        { d:"Day 3", topic:"نعت - تفہیم", skill:"tafheem", pages:"12", slo:"U-2-TF", goal:"سوالات اور لفظوں کا کھیل", dur:"40", pdf:"1fIZyTQZptLNg22YL48Ux180_6-uHQInc" },
+        { d:"Day 4", topic:"نعت - قواعد و لکھائی", skill:"qawaid", pages:"13", slo:"U-2-QW", goal:"قواعد کی مشقیں", dur:"40", pdf:"14bbRrzYfg3VEi1cKCfDGiz8Ask21w8bH" },
+        { d:"Day 5", topic:"نعت - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"14", slo:"U-2-TL", goal:"لکھائی کی مشقیں", dur:"40", pdf:"1WUg1bHZ_pmuvbu0eksWNd5uMh9kC8ARv" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: نعت", skill:"duhrai", pages:"9-14", slo:"U-2-AM", goal:"", dur:"30", pdf:"1Bk0wNcZcE6r59R18E7OvAD3O1ZhUOl2Q" },
+      ] },
+      { num:3, title:"پیارے رسول ﷺ", audio:"assets/audio/heart_urdu_g2_ch3.mp3", days: [
+        { d:"Day 1", topic:"پیارے رسول ﷺ - بلند خوانی", skill:"buland khwani", pages:"15-16", slo:"U-2-BK", goal:"سبق کو روانی سے پڑھنا", dur:"40", pdf:"11LRu1L7gYdiwBnZsCgyFZfHuPPnzArrA" },
+        { d:"Day 2", topic:"پیارے رسول ﷺ - الفاظ و معانی", skill:"alfaaz maani", pages:"17", slo:"U-2-AM", goal:"نئے الفاظ کے معانی", dur:"40", pdf:"1be2NQ8Ie4GhZehA_2BKFVDq41nfCKo8c" },
+        { d:"Day 3", topic:"پیارے رسول ﷺ - تفہیم", skill:"tafheem", pages:"18", slo:"U-2-TF", goal:"سوالات کے جوابات", dur:"40", pdf:"1Z4wKcn1faCBka1cVuHaZfB73tYgfLcyh" },
+        { d:"Day 4", topic:"پیارے رسول ﷺ - قواعد", skill:"qawaid", pages:"19-20", slo:"U-2-QW", goal:"فعل کی اقسام - ماضی، حال", dur:"40", pdf:"1mtMnOQko1_nFQbIIR-wfgrA6dRfD_pU_" },
+        { d:"Day 5", topic:"پیارے رسول ﷺ - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"21", slo:"U-2-TL", goal:"حضور ﷺ کے بارے میں لکھنا", dur:"40", pdf:"1oZp0xvQ0jpNU4_ETTQbWUzEEsBJewWDu" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: حمد", skill:"duhrai", pages:"21", slo:"U-2-TL", goal:"", dur:"30", pdf:"1-P4cqt0rxRGrbCSU3t58WVnux_QtP7Bl" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: پیارے رسول ﷺ", skill:"duhrai", pages:"15-21", slo:"U-2-AM", goal:"", dur:"30", pdf:"1QcQ_eE9OS6R34JBzRNKlE89ruIHpLwaS" },
+      ] },
+    ],
+    "3": [
+      { num:1, title:"حمد", audio:"assets/audio/heart_urdu_g3_ch1.mp3", days: [
         { d:"Day 1", topic:"حمد - بلند خوانی", skill:"buland khwani", pages:"1-2", slo:"U-3-BK", goal:"نظم حمد کو ترنم سے پڑھنا", dur:"40", pdf:"1HePZaFVSskuz-nDmq2CSdR8FPF942Atk" },
         { d:"Day 2", topic:"حمد - الفاظ و معانی", skill:"alfaaz maani", pages:"3", slo:"U-3-AM", goal:"الفاظ معانی", dur:"40", pdf:"1RdrL7LYUVmOI5PwZJrqH98s4U_zArIrq" },
         { d:"Day 3", topic:"حمد - تفہیم", skill:"tafheem", pages:"4", slo:"U-3-TF", goal:"سوالات", dur:"40", pdf:"1IhLW28rcDKf6CalWmYlKk0Q__7J220Rz" },
         { d:"Day 4", topic:"حمد - قواعد", skill:"qawaid", pages:"5-6", slo:"U-3-QW", goal:"اسم اور اس کی اقسام", dur:"40", pdf:"1w7n1gdG_PoMls3bAyLfU1lY9SfxnvfQH" },
         { d:"Day 5", topic:"حمد - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"7", slo:"U-3-TL", goal:"لکھائی", dur:"40", pdf:"1aqidt8sfCNmTaZztGa7s5WXGI6EBUDtx" },
         { d:"📋 Ch. Review", topic:"Chapter Review: حمد", skill:"duhrai", pages:"1-7", slo:"U-3-AM", goal:"", dur:"30", pdf:"1ag98BARNmDmc1Vp_Uiv1g_I6FV7pC5IS" },
-      ]
-    },
-    "4": {
-      title: "حمد",
-      audio: "assets/audio/heart_urdu_g4.mp3",
-      days: [
+      ] },
+      { num:2, title:"نعت", audio:"assets/audio/heart_urdu_g3_ch2.mp3", days: [
+        { d:"Day 1", topic:"نعت - بلند خوانی", skill:"buland khwani", pages:"8-9", slo:"U-3-BK", goal:"نعت پڑھنا", dur:"40", pdf:"1YcqBvdn8CLs0Xb5vpD5t8tAV8wZDJGMS" },
+        { d:"Day 2", topic:"نعت - الفاظ و معانی", skill:"alfaaz maani", pages:"10", slo:"U-3-AM", goal:"الفاظ معانی", dur:"40", pdf:"1n2gYSe1lGBKuxxOt8-4vBMIGftioCwii" },
+        { d:"Day 3", topic:"نعت - تفہیم", skill:"tafheem", pages:"11", slo:"U-3-TF", goal:"سوالات", dur:"40", pdf:"1DQi3jTS4kfv6kP3er-Z2HYhK9vAMqujZ" },
+        { d:"Day 4", topic:"نعت - قواعد", skill:"qawaid", pages:"12-13", slo:"U-3-QW", goal:"صفت کی پہچان", dur:"40", pdf:"1j6sblxvvtR6i6SSXKDyOagxmC3TJN5jZ" },
+        { d:"Day 5", topic:"نعت - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"14", slo:"U-3-TL", goal:"لکھائی", dur:"40", pdf:"11yXx8z3nDayYqSHMCH9adNBoRvVy5CpD" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: نعت", skill:"duhrai", pages:"8-14", slo:"U-3-AM", goal:"", dur:"30", pdf:"1j8oVF-kaPJ9OHcYd-AmD6RXUiltpwMsA" },
+      ] },
+      { num:3, title:"بے مثل ہے ذات رسول کریم ﷺ", audio:"assets/audio/heart_urdu_g3_ch3.mp3", days: [
+        { d:"Day 1", topic:"ذات رسول ﷺ - بلند خوانی", skill:"buland khwani", pages:"15-16", slo:"U-3-BK", goal:"سبق پڑھنا", dur:"40", pdf:"1VWgKGfiNWsL77oK2u2s5NcBrLgp79lnY" },
+        { d:"Day 2", topic:"ذات رسول ﷺ - الفاظ و معانی", skill:"alfaaz maani", pages:"17", slo:"U-3-AM", goal:"الفاظ معانی", dur:"40", pdf:"" },
+        { d:"Day 3", topic:"ذات رسول ﷺ - تفہیم", skill:"tafheem", pages:"18", slo:"U-3-TF", goal:"سوالات", dur:"40", pdf:"" },
+        { d:"Day 4", topic:"ذات رسول ﷺ - قواعد", skill:"qawaid", pages:"19-20", slo:"U-3-QW", goal:"فعل ماضی اور فعل حال", dur:"40", pdf:"" },
+        { d:"Day 5", topic:"ذات رسول ﷺ - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"21", slo:"U-3-TL", goal:"لکھائی", dur:"40", pdf:"" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: حمد", skill:"duhrai", pages:"21", slo:"U-3-TL", goal:"", dur:"30", pdf:"" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: بے مثل ہے ذات رسول کریم ﷺ", skill:"duhrai", pages:"15-21", slo:"U-3-AM", goal:"", dur:"30", pdf:"" },
+      ] },
+    ],
+    "4": [
+      { num:1, title:"حمد", audio:"assets/audio/heart_urdu_g4_ch1.mp3", days: [
         { d:"Day 1", topic:"حمد - بلند خوانی", skill:"buland khwani", pages:"1-2", slo:"U-4-BK", goal:"نظم پڑھنا", dur:"40", pdf:"1IO78OR7F1V8pnlTnXEmlNQe-ZebfuMpV" },
         { d:"Day 2", topic:"حمد - الفاظ و تفہیم", skill:"alfaaz maani", pages:"3", slo:"U-4-AM", goal:"الفاظ معانی", dur:"40", pdf:"16IDOJgWFzYE3pW1JnKg4u5WTH5RYIDoR" },
         { d:"Day 3", topic:"حمد - تفہیم", skill:"tafheem", pages:"4", slo:"U-4-TF", goal:"سوالات", dur:"40", pdf:"1an4xZTHfyF_iRa2UwgBMpqurCjv8X2bA" },
         { d:"Day 4", topic:"حمد - قواعد", skill:"qawaid", pages:"5", slo:"U-4-QW", goal:"تشبیہ و استعارہ", dur:"40", pdf:"15ZGRLIl6XU_-a2Or6HH2TV6NjLlSFoYJ" },
         { d:"Day 5", topic:"حمد - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"6", slo:"U-4-TL", goal:"لکھائی", dur:"40", pdf:"1vjeHusVrdERcW-dJXIOrLtyPPbFdYytl" },
         { d:"📋 Ch. Review", topic:"Chapter Review: حمد", skill:"duhrai", pages:"1-6", slo:"U-4-AM", goal:"", dur:"30", pdf:"1-9LTIGj53WjGhHsK1NrlgNL1RWpfhHXa" },
-      ]
-    },
-    "5": {
-      title: "حمد",
-      audio: "assets/audio/heart_urdu_g5.mp3",
-      days: [
+      ] },
+      { num:2, title:"نعت", audio:"assets/audio/heart_urdu_g4_ch2.mp3", days: [
+        { d:"Day 1", topic:"نعت - بلند خوانی", skill:"buland khwani", pages:"7-8", slo:"U-4-BK", goal:"نعت پڑھنا", dur:"40", pdf:"1odGJndLGJ7do-IZoumhGyOocw9JV1JOl" },
+        { d:"Day 2", topic:"نعت - الفاظ و معانی", skill:"alfaaz maani", pages:"9", slo:"U-4-AM", goal:"الفاظ معانی", dur:"40", pdf:"17VlbqsQfGj6-y44I02KHVJOup4FDM-wK" },
+        { d:"Day 3", topic:"نعت - تفہیم", skill:"tafheem", pages:"10", slo:"U-4-TF", goal:"سوالات", dur:"40", pdf:"1Emm0cdJNaduoH8YYUMEBfn6iIjcafwRX" },
+        { d:"Day 4", topic:"نعت - قواعد", skill:"qawaid", pages:"11", slo:"U-4-QW", goal:"اسم معرفہ و نکرہ", dur:"40", pdf:"1jqO56G8M-vxdZ-cyQ4t3F0gmPwYh9lt-" },
+        { d:"Day 5", topic:"نعت - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"12", slo:"U-4-TL", goal:"لکھائی", dur:"40", pdf:"12UxNkc2EPJvTTtGQIWUy6MSME1yviqpx" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: نعت", skill:"duhrai", pages:"7-12", slo:"U-4-AM", goal:"", dur:"30", pdf:"1OvGCorVXN-lqEc2XeP1-FurcxZ8NDbwO" },
+      ] },
+      { num:3, title:"مثال نظم", audio:"assets/audio/heart_urdu_g4_ch3.mp3", days: [
+        { d:"Day 1", topic:"مثال نظم - بلند خوانی", skill:"buland khwani", pages:"13-15", slo:"U-4-BK", goal:"سبق پڑھنا", dur:"40", pdf:"1W_9hoTYGuUFSfx6K9HEC80sqBWMxltSK" },
+        { d:"Day 2", topic:"مثال نظم - الفاظ و معانی", skill:"alfaaz maani", pages:"16", slo:"U-4-AM", goal:"الفاظ معانی", dur:"40", pdf:"1a1NwvQCPscGbrqh_eioQR7-eFDHg1Fjf" },
+        { d:"Day 3", topic:"مثال نظم - تفہیم", skill:"tafheem", pages:"17", slo:"U-4-TF", goal:"سوالات", dur:"40", pdf:"1ESSus56wXCQNkRQLFyJcs8a5hINMc4a2" },
+        { d:"Day 4", topic:"مثال نظم - قواعد", skill:"qawaid", pages:"18-19", slo:"U-4-QW", goal:"فعل کی اقسام", dur:"40", pdf:"1pABp26awLLuBwWhmGQ005xOolUEumI0W" },
+        { d:"Day 5", topic:"مثال نظم - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"20", slo:"U-4-TL", goal:"لکھائی", dur:"40", pdf:"1blND8FDuGq0vZaiTGEtGBzcbh7h9eVbj" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: حمد", skill:"duhrai", pages:"20", slo:"U-4-TL", goal:"", dur:"30", pdf:"1YvRuV4f1QW7IAHPYBMf8-wLR6754CotL" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: مثال نظم", skill:"duhrai", pages:"13-20", slo:"U-4-AM", goal:"", dur:"30", pdf:"1an4-iOwrNTOtKNtiCBXfR-xV9EcrSL0Y" },
+      ] },
+    ],
+    "5": [
+      { num:1, title:"حمد", audio:"assets/audio/heart_urdu_g5_ch1.mp3", days: [
         { d:"Day 1", topic:"حمد - بلند خوانی", skill:"buland khwani", pages:"1-2", slo:"U-5-BK", goal:"نظم پڑھنا", dur:"40", pdf:"" },
         { d:"Day 2", topic:"حمد - الفاظ و معانی", skill:"alfaaz maani", pages:"3", slo:"U-5-AM", goal:"الفاظ معانی", dur:"40", pdf:"" },
         { d:"Day 3", topic:"حمد - تفہیم", skill:"tafheem", pages:"4", slo:"U-5-TF", goal:"سوالات", dur:"40", pdf:"" },
         { d:"Day 4", topic:"حمد - قواعد", skill:"qawaid", pages:"5", slo:"U-5-QW", goal:"صنائع بدائع", dur:"40", pdf:"" },
         { d:"Day 5", topic:"حمد - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"6", slo:"U-5-TL", goal:"لکھائی", dur:"40", pdf:"" },
         { d:"📋 Ch. Review", topic:"Chapter Review: حمد", skill:"duhrai", pages:"1-6", slo:"U-5-AM", goal:"", dur:"30", pdf:"" },
-      ]
-    },
+      ] },
+      { num:2, title:"نعت", audio:"assets/audio/heart_urdu_g5_ch2.mp3", days: [
+        { d:"Day 1", topic:"نعت - بلند خوانی", skill:"buland khwani", pages:"7-8", slo:"U-5-BK", goal:"نعت پڑھنا", dur:"40", pdf:"" },
+        { d:"Day 2", topic:"نعت - الفاظ و معانی", skill:"alfaaz maani", pages:"9", slo:"U-5-AM", goal:"الفاظ معانی", dur:"40", pdf:"" },
+        { d:"Day 3", topic:"نعت - تفہیم", skill:"tafheem", pages:"10", slo:"U-5-TF", goal:"سوالات", dur:"40", pdf:"" },
+        { d:"Day 4", topic:"نعت - قواعد", skill:"qawaid", pages:"11", slo:"U-5-QW", goal:"اسم کی اقسام", dur:"40", pdf:"" },
+        { d:"Day 5", topic:"نعت - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"12", slo:"U-5-TL", goal:"لکھائی", dur:"40", pdf:"" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: نعت", skill:"duhrai", pages:"7-12", slo:"U-5-AM", goal:"", dur:"30", pdf:"" },
+      ] },
+      { num:3, title:"رحمت عالم ﷺ", audio:"assets/audio/heart_urdu_g5_ch3.mp3", days: [
+        { d:"Day 1", topic:"رحمت عالم - بلند خوانی", skill:"buland khwani", pages:"13-15", slo:"U-5-BK", goal:"سبق پڑھنا", dur:"40", pdf:"" },
+        { d:"Day 2", topic:"رحمت عالم - الفاظ و معانی", skill:"alfaaz maani", pages:"16", slo:"U-5-AM", goal:"الفاظ معانی", dur:"40", pdf:"" },
+        { d:"Day 3", topic:"رحمت عالم - تفہیم", skill:"tafheem", pages:"17-18", slo:"U-5-TF", goal:"سوالات", dur:"40", pdf:"" },
+        { d:"Day 4", topic:"رحمت عالم - قواعد", skill:"qawaid", pages:"19", slo:"U-5-QW", goal:"فعل مرکب", dur:"40", pdf:"" },
+        { d:"Day 5", topic:"رحمت عالم - تخلیقی لکھائی", skill:"takhleeqi likhai", pages:"20", slo:"U-5-TL", goal:"لکھائی", dur:"40", pdf:"" },
+        { d:"↻ Spiral Review", topic:"Spiral Review: حمد", skill:"duhrai", pages:"20", slo:"U-5-TL", goal:"", dur:"30", pdf:"" },
+        { d:"📋 Ch. Review", topic:"Chapter Review: رحمت عالم ﷺ", skill:"duhrai", pages:"13-20", slo:"U-5-AM", goal:"", dur:"30", pdf:"" },
+      ] },
+    ],
   },
 };
-
 const HW_DATA = {
   "1": {
     "Maths": { chapter:"Ch 1 — Whole Numbers", skills:"Trace numerals, count objects, tens & ones, before/after (arrow cue), story sum", pdf:"1I5NJv2I479H1dKcgrjVEGDPTbyYyhla-" },
@@ -1123,7 +1467,7 @@ function renderLessonPlanModule(){
 function initLessonPlanModule(){
   lpEngine = makeEngine("lp-scroll", "teacher");
   lpDone = false; lpBusy = false; lpCounter = 11990;
-  lpSel = { grade:null, subject:null, chapter:null };
+  lpSel = { grade:null, subject:null, chapterNum:null };
   lpSheetView = null;
   document.getElementById("lp-scroll").innerHTML = `
     <div class="h-full flex flex-col items-center justify-center text-center px-6">
@@ -1178,11 +1522,17 @@ function sheetRow(label, value, action){
     </div>`;
 }
 
-function lpGet(){
-  if (!lpSel.grade || !lpSel.subject) return null;
+function lpChapters(){
+  if (!lpSel.grade || !lpSel.subject) return [];
   const g = String(lpSel.grade).replace(/\D/g, "");
   const subj = LP_DATA[lpSel.subject];
-  return subj ? subj[g] : null;
+  return (subj && subj[g]) || [];
+}
+function lpGet(){
+  const chapters = lpChapters();
+  if (!chapters.length) return null;
+  if (lpSel.chapterNum == null) return null;
+  return chapters.find(c => c.num === lpSel.chapterNum) || null;
 }
 function lpDay(label){
   const c = lpGet(); if (!c || !c.days.length) return null;
@@ -1214,21 +1564,20 @@ function renderLpSheet(){
     body = sheetTopBar("Subject", { back:"browse" }) + `
       <div class="sheet-list">${["Maths","English","Urdu"].map(s => sheetRow(s, "", "set-subject:" + s)).join("")}</div>`;
   } else if (lpSheetView === "chapterSelect"){
-    const ready = !!lpSel.chapter;
+    const chapters = lpChapters();
     body = sheetTopBar("Select Chapter", { back:"browse", progress:66 }) + `
       <p class="text-[19px] font-extrabold mb-1" style="color:#fff;">${lpSel.grade} — ${lpSel.subject}</p>
-      <p class="text-[12.5px] mb-3" style="color:#98989D;">Pick a chapter.</p>
-      <div class="sheet-list">${sheetRow("Chapter", lpSel.chapter || "", "open-chapter")}</div>
-      <button data-lp="${ready ? "to-lessons" : ""}" class="sheet-btn" style="background:${ready ? "#25D366" : "#3A3A3C"}; color:${ready ? "#04201A" : "#8A9296"};">Show Lessons</button>
+      <p class="text-[12.5px] mb-3" style="color:#98989D;">${chapters.length} real chapters available — pick one.</p>
+      <div class="sheet-list">
+        ${chapters.map(c => `<div class="sheet-row" data-lp="pick-chapter:${c.num}"><span class="text-[14px] font-semibold" style="color:#fff;">Chapter ${c.num}: ${c.title}<br><span style="font-size:11px; color:#98989D; font-weight:400;">${c.days.length} lessons</span></span>${lpSel.chapterNum === c.num ? '<span style="color:#25D366;">✓</span>' : '<span style="color:#636366;">›</span>'}</div>`).join("")}
+      </div>
     `;
-  } else if (lpSheetView === "chapter"){
-    const c = lpGet();
-    const label = c ? ("Chapter 1: " + c.title) : "Chapter 1";
-    body = sheetTopBar("Chapter", { back:"chapterSelect" }) + `<div class="sheet-list">${sheetRow(label, "", "set-chapter:" + label)}</div>`;
   } else if (lpSheetView === "lessons"){
     const c = lpGet();
     const days = c ? c.days : [];
     body = sheetTopBar("Lesson", { back:"chapterSelect" }) + `
+      <p class="text-[19px] font-extrabold mb-1" style="color:#fff;">Chapter ${c ? c.num : ""}: ${c ? c.title : ""}</p>
+      <p class="text-[12.5px] mb-3" style="color:#98989D;">Pick a day.</p>
       <div class="sheet-list">
         <div class="sheet-row" data-lp="pick-lesson:Full Chapter"><span class="text-[14px] font-semibold" style="color:#fff;">Full Chapter<br><span style="font-size:11px; color:#98989D; font-weight:400;">All ${days.length} lessons</span></span><span style="color:#25D366;">✓</span></div>
         ${days.map(x => `<div class="sheet-row" data-lp="pick-lesson:${x.d}"><span class="text-[14px] font-semibold" style="color:#fff;">${x.d}<br><span style="font-size:11px; color:#98989D; font-weight:400;">${x.topic} · p.${x.pages}</span></span></div>`).join("")}
@@ -1246,13 +1595,11 @@ document.addEventListener("click", (e) => {
   if (action === "close"){ closeLpSheet(); return; }
   if (action === "browse" || action === "chapterSelect"){ openLpSheet(action); return; }
   if (action === "to-chapter"){ openLpSheet("chapterSelect"); return; }
-  if (action === "to-lessons"){ openLpSheet("lessons"); return; }
   if (action === "open-grade"){ openLpSheet("grade"); return; }
   if (action === "open-subject"){ openLpSheet("subject"); return; }
-  if (action === "open-chapter"){ openLpSheet("chapter"); return; }
   if (action.startsWith("set-grade:")){ lpSel.grade = action.split(":")[1]; openLpSheet("browse"); return; }
-  if (action.startsWith("set-subject:")){ lpSel.subject = action.split(":")[1]; lpSel.chapter = null; openLpSheet("browse"); return; }
-  if (action.startsWith("set-chapter:")){ lpSel.chapter = action.split(":").slice(1).join(":"); openLpSheet("chapterSelect"); return; }
+  if (action.startsWith("set-subject:")){ lpSel.subject = action.split(":")[1]; lpSel.chapterNum = null; openLpSheet("browse"); return; }
+  if (action.startsWith("pick-chapter:")){ lpSel.chapterNum = parseInt(action.split(":")[1], 10); openLpSheet("lessons"); return; }
   if (action.startsWith("pick-lesson:")){
     const day = action.split(":")[1];
     closeLpSheet();
@@ -1267,12 +1614,12 @@ function runLessonPlanFlow(dayLabel){
   const c = lpGet();
   const day = lpDay(dayLabel);
   const gLabel = lpSel.grade;
-  const summary = `${gLabel} · ${lpSel.subject} · ${dayLabel}`;
+  const summary = `${gLabel} · ${lpSel.subject} · Ch${c ? c.num : ""} · ${dayLabel}`;
   const m2 = lpEngine.push({ from:"teacher", kind:"text", time:"12:15 PM", text: summary, read:false });
   lpEngine.markRead(m => m.id === m2.id);
   lpEngine.say({ from:"rumi", kind:"text", time:"12:15 PM", text:"Yahan hai aapka lesson plan 👇" }, 900, () => {
     const cardMsg = { from:"rumi", kind:"card", time:"12:15 PM",
-      header: `${dayLabel.toUpperCase()} · ${gLabel.toUpperCase()} ${lpSel.subject.toUpperCase()}`,
+      header: `${dayLabel.toUpperCase()} · CH${c ? c.num : ""} · ${gLabel.toUpperCase()} ${lpSel.subject.toUpperCase()}`,
       subhead: day ? day.topic : (c ? c.title : lpSel.subject),
       goal: day ? day.goal : (c ? c.title : ""),
       slo: day ? day.slo : "",
